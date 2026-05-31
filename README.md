@@ -84,15 +84,18 @@ Cloudflare-only. No servers, no containers.
 > `wrangler` is already a dev dependency — `pnpm install` brings it in, no global install needed.
 
 ```bash
-git clone https://github.com/eikiyo/recto.git
-cd recto/recto
-pnpm setup
+git clone https://github.com/eikiyo/recto.git && cd recto/recto && pnpm setup
 ```
 
-That single command does everything: installs the workspace, creates the local
-D1 database and runs migrations, **opens the secrets file for you to paste into**,
-then — once you press Enter — launches the **API on http://localhost:8787** and
-the **UI on http://localhost:8765** together (Ctrl-C stops both).
+That one line does **everything**: it auto-generates local dev secrets (so the
+app boots with **zero key-pasting**), opens `.dev.vars` in case you want to add
+real GSC/Emailit keys, installs the whole workspace, creates + migrates the local
+D1 database, and launches the **API on http://localhost:8787** and the **UI on
+http://localhost:8765** together (Ctrl-C stops both).
+
+> First run, `pnpm install` downloads the toolchain (wrangler, drizzle,
+> playwright) — that's a one-time few minutes. After it, boot is seconds. The
+> only thing you ever *have* to type is that one command.
 
 <details>
 <summary>Prefer to run the steps yourself?</summary>

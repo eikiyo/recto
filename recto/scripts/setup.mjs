@@ -1,59 +1,69 @@
 #!/usr/bin/env node
 // Location: recto/scripts/setup.mjs
-// Purpose: one-command clone-and-go. Installs deps, creates the local DB,
-//          opens the secrets file for the user to paste into, then launches
-//          the API + UI together. Zero extra dependencies (Node built-ins only).
-// Functions: run(), main()
-// Calls: pnpm install / db:generate / db:migrate:local / dev; opens .dev.vars
-// Imports: node:child_process, node:fs, node:readline, node:os
+// Purpose: one-command clone-and-go. Installs everything, auto-generates local
+//          dev secrets so the app boots with ZERO pasting, creates+migrates the
+//          local DB, opens .dev.vars for optional real keys, then launches the
+//          full stack (API + UI) on localhost.
+// Functions: run(), gen(), seedEnv(), openInEditor(), main()
+// Calls: pnpm install / db:generate / db:migrate:local / dev
+// Imports: node:child_process, node:fs, node:os, node:crypto
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, copyFileSync } from 'node:fs';
-import { createInterface } from 'node:readline';
+import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { platform } from 'node:os';
+import { randomBytes } from 'node:crypto';
 
 const run = (cmd) => { console.log(`\n$ ${cmd}`); execSync(cmd, { stdio: 'inherit' }); };
 
 const ENV_SRC = 'apps/workers/api/.dev.vars.example';
 const ENV_DST = 'apps/workers/api/.dev.vars';
 
-async function main() {
-  console.log('▸ recto setup — install, database, secrets, run (one shot)\n');
+// Dev-only secrets we can safely generate so the app boots with no human input.
+// (Real GSC/Emailit keys are optional and only needed for those integrations.)
+function seedEnv() {
+  if (existsSync(ENV_DST)) {
+    console.log(`• ${ENV_DST} exists — leaving your values untouched`);
+    return;
+  }
+  let body = readFileSync(ENV_SRC, 'utf8');
+  const fill = {
+    RECTO_KEK: randomBytes(32).toString('base64'),
+    MAGIC_LINK_SECRET: randomBytes(32).toString('hex'),
+    APPSUMO_WEBHOOK_SECRET: randomBytes(16).toString('hex'),
+  };
+  for (const [k, v] of Object.entries(fill)) {
+    body = body.replace(new RegExp(`^${k}=.*$`, 'm'), `${k}="${v}"`);
+  }
+  writeFileSync(ENV_DST, body);
+  console.log(`✓ created ${ENV_DST} with auto-generated dev secrets (no pasting needed to boot)`);
+}
 
-  // 1. Install the whole workspace (API + web + packages). wrangler comes with it.
+function openInEditor(file) {
+  const opener = platform() === 'darwin' ? 'open' : platform() === 'win32' ? 'cmd' : 'xdg-open';
+  const args = platform() === 'win32' ? ['/c', 'start', '', file] : [file];
+  try { spawnSync(opener, args, { stdio: 'ignore' }); } catch { /* editor optional */ }
+}
+
+async function main() {
+  console.log('▸ recto setup — one command to a running localhost\n');
+
+  // 1. Secrets FIRST so it pops open while the slow install runs. Auto-filled,
+  //    so the app boots even if you never touch it.
+  seedEnv();
+  openInEditor(ENV_DST);
+  console.log(`✎ Opened ${ENV_DST}. Optional: paste real GSC/Emailit keys for those`);
+  console.log('  features. The app runs locally without them.\n');
+
+  // 2. Install the whole workspace (API + UI + packages). wrangler ships with it.
+  //    NOTE: first run downloads the toolchain — this is the slow step, not boot.
   run('pnpm install');
 
-  // 2. Seed the local secrets file from the template (never overwrite an existing one).
-  if (!existsSync(ENV_DST)) {
-    copyFileSync(ENV_SRC, ENV_DST);
-    console.log(`\n✓ created ${ENV_DST} from the template`);
-  } else {
-    console.log(`\n• ${ENV_DST} already exists — leaving your values untouched`);
-  }
-
-  // 3. Create the local D1 database and apply migrations (no secrets needed yet).
+  // 3. Create + migrate the local D1 database.
   run('pnpm --filter @recto/api db:generate');
   run('pnpm --filter @recto/api db:migrate:local');
 
-  // 4. Pop the secrets file open in the default editor so the user can paste values.
-  const opener = platform() === 'darwin' ? 'open'
-    : platform() === 'win32' ? 'cmd'
-    : 'xdg-open';
-  const args = platform() === 'win32' ? ['/c', 'start', '', ENV_DST] : [ENV_DST];
-  try { spawnSync(opener, args, { stdio: 'ignore' }); } catch { /* editor optional */ }
-  console.log(`\n✎ Opened ${ENV_DST}. Paste your values and save.`);
-  console.log('  For pure local dev the placeholders are enough to boot — fill real');
-  console.log('  keys (RECTO_KEK, GSC_*, EMAILIT_API_KEY) only for the features you use.');
-
-  // 5. Wait for the human, then launch both servers.
-  await new Promise((resolve) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    rl.question('\n⏎ Press Enter once .dev.vars is saved to launch the app… ', () => {
-      rl.close();
-      resolve();
-    });
-  });
-
-  console.log('\n▸ Starting API (:8787) + UI (:8765). Ctrl-C stops both.\n');
+  // 4. Launch both servers. One Ctrl-C stops both.
+  console.log('\n▸ Live: API → http://localhost:8787 · UI → http://localhost:8765');
+  console.log('  (edit .dev.vars and re-run `pnpm dev` to pick up real keys)\n');
   run('pnpm dev');
 }
 
