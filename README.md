@@ -20,6 +20,12 @@ A **self-hosted, open-source alternative to Link Whisper and InLinks** — your 
 
 <img src="docs/screenshots/landing-hero.png" alt="recto — recover the traffic your site forgot" width="860">
 
+<br><br>
+
+<img src="docs/screenshots/recto-demo.gif" alt="recto in action — surface ranked orphan pages, inspect, insert the exact-paragraph internal link, then audit" width="860">
+
+<sub><i>Surface ranked orphans → inspect → insert the exact-paragraph link → audit. Real UI, seeded data.</i></sub>
+
 </div>
 
 ---
