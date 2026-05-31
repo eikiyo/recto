@@ -22,9 +22,9 @@ A **self-hosted, open-source alternative to Link Whisper and InLinks** — your 
 
 <br><br>
 
-<img src="docs/screenshots/recto-demo.gif" alt="recto in action — surface ranked orphan pages, inspect, insert the exact-paragraph internal link, then audit" width="860">
+<img src="docs/screenshots/recto-demo-fast.gif" alt="recto in action — from the landing page into the app: surface ranked orphan pages, then audit every CMS push" width="860">
 
-<sub><i>Surface ranked orphans → inspect → insert the exact-paragraph link → audit. Real UI, seeded data.</i></sub>
+<sub><i>Landing → workbench → ranked orphans → audit log. Real UI, seeded data.</i></sub>
 
 </div>
 
