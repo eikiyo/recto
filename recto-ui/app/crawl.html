@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reading site — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="workbench" data-page="crawl">
+
+<main class="container container--prose" style="padding: var(--s-7) var(--s-5);">
+
+  <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-3);">Reading site</p>
+  <h1 style="margin-bottom: var(--s-5);" data-testid="crawl-host">…</h1>
+
+  <div class="progress" style="margin-bottom: var(--s-3);">
+    <div class="progress__bar" id="bar" style="width: 0%;" role="progressbar" aria-label="Crawl progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+  </div>
+
+  <p class="mono tnum" style="font-size: 14px; color: var(--ink-deep); margin-bottom: var(--s-2);">
+    <span data-testid="crawl-progress">Starting…</span>
+  </p>
+  <p class="mono" style="font-size: 12px; color: var(--ink-soft); margin-bottom: var(--s-6);" data-testid="crawl-status">Waiting for the first page.</p>
+
+  <p class="muted" style="font-size: 14px; max-width: 480px;">You can close this tab. We will email you when done.</p>
+
+  <details class="accordion" style="margin-top: var(--s-6);">
+    <summary>What recto reads</summary>
+    <div class="accordion__body">
+      <ul style="padding-left: var(--s-5); margin: 0;">
+        <li>Every page reachable from the sitemap, up to 10,000 pages.</li>
+        <li>Internal anchor tags and their hrefs to build the link graph.</li>
+        <li>Page title, first 1,000 words for the embedding, last-modified header.</li>
+        <li>Robots directives are honored.</li>
+      </ul>
+    </div>
+  </details>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>

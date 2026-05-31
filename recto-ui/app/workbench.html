@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workbench — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="workbench" data-page="workbench">
+
+<main class="container container--table" style="padding: var(--s-7) var(--s-5);">
+
+  <!-- First-time onboarding card. Surfaces only when /api/users/me reports
+       onboarded === false. Hidden by default to prevent flash on repeat loads. -->
+  <section id="onboarding-card" data-testid="onboarding-card" hidden
+           style="margin-bottom: var(--s-6); padding: var(--s-5); border: 1px solid var(--rule); border-radius: var(--r-2); background: var(--ground-raised);">
+    <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-3);">Welcome to recto</p>
+    <h2 style="margin-bottom: var(--s-2);">Let's get your site connected.</h2>
+    <p class="muted" style="margin-bottom: var(--s-5); font-size: 15px;">Two questions. Then we open the connect form with your URL pre-filled.</p>
+    <form id="onboarding-form" novalidate>
+      <div class="field" style="margin-bottom: var(--s-4);">
+        <label class="field__label" for="onb-name">Your name</label>
+        <input class="input" type="text" id="onb-name" name="name" required maxlength="80" autocomplete="given-name" data-testid="onb-name" placeholder="What we should call you in emails">
+      </div>
+      <div class="field" style="margin-bottom: var(--s-5);">
+        <label class="field__label" for="onb-website">Your site URL</label>
+        <input class="input mono" type="url" id="onb-website" name="website" required autocomplete="url" data-testid="onb-website" placeholder="https://your-site.com">
+        <p class="field__help">We'll pre-fill the connect form with this so you only type it once.</p>
+      </div>
+      <button class="btn btn--primary" type="submit" data-testid="onb-continue">Continue</button>
+    </form>
+  </section>
+
+  <!-- "Since you were last here" — three numerals, scannable in <1s. -->
+  <section style="margin-bottom: var(--s-6); padding-bottom: var(--s-6); border-bottom: 1px solid var(--rule);">
+    <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-4);" data-testid="since-ts">Since you were last here · …</p>
+    <!-- Since-cells: three numerals scoped to the user's previous-but-one
+         session start (see /api/workbench/since). Each cell links to the
+         orphans list so the user can act on what changed; we previously
+         passed ?since=last + ?type= as query params but pageOrphans does not
+         filter on those, so we drop the misleading params and just deep-link
+         into the list. -->
+    <div class="since" data-testid="since-block">
+      <a class="since__cell" href="/app/orphans.html" data-testid="since-pages">
+        <span class="since__num tnum" data-testid="num-pages">…</span>
+        <span class="since__label">new pages published</span>
+      </a>
+      <a class="since__cell" href="/app/orphans.html" data-testid="since-orphans">
+        <span class="since__num tnum" data-testid="num-orphans">…</span>
+        <span class="since__label">new orphans surfaced</span>
+      </a>
+      <a class="since__cell" href="/app/orphans.html" data-testid="since-candidates">
+        <span class="since__num tnum" data-testid="num-candidates">…</span>
+        <span class="since__label">anchor candidates ready</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Sites (rows-not-tiles) -->
+  <div class="printgrid">
+    <section>
+      <h3>Sites</h3>
+      <ul data-testid="sites-list" style="list-style: none; padding: 0; margin: 0;">
+        <li class="muted" data-empty>Loading your sites…</li>
+      </ul>
+
+      <p style="margin-top: var(--s-5); font-size: 13px; color: var(--ink-soft);" data-testid="tier-prompt">
+        <a href="https://appsumo.com/products/recto" target="_blank" rel="noopener">Stack a code →</a> to lift your site cap.
+      </p>
+
+      <p style="margin-top: var(--s-4);">
+        <a class="btn" href="/app/sites-new.html">Connect another site</a>
+      </p>
+    </section>
+
+    <aside>
+      <h3>Recent activity</h3>
+      <ul data-testid="recent-activity" style="list-style: none; padding: 0; margin: 0; font-size: 14px;">
+        <li class="muted" data-empty>No recent activity yet.</li>
+      </ul>
+      <p style="margin-top: var(--s-4);">
+        <a href="/app/audit.html" style="font-size: 13px;">See full audit log →</a>
+      </p>
+    </aside>
+  </div>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>

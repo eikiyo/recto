@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Publishing gaps — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="orphans" data-page="gaps">
+
+<main class="container container--prose" style="padding: var(--s-6) var(--s-5);">
+
+  <!-- No-sites empty state — same pattern as orphans.html. -->
+  <section id="gaps-empty" data-testid="gaps-empty" hidden
+           style="padding: var(--s-7) var(--s-5); border: 1px solid var(--rule); border-radius: var(--r-2); background: var(--ground-raised); text-align: center;">
+    <h1 style="font-size: 28px; margin-bottom: var(--s-3);">Connect a site to find your publishing gaps.</h1>
+    <p class="muted" style="font-size: 15px; max-width: 480px; margin: 0 auto var(--s-5);">recto groups your orphans into topic clusters so you can see where a pillar page is missing.</p>
+    <a class="btn btn--primary btn--lg" href="/app/sites-new.html" data-testid="gaps-empty-cta">Connect a site →</a>
+  </section>
+
+  <div data-gaps-loaded>
+    <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-1);" data-testid="gaps-host">…</p>
+    <h1 style="margin-bottom: var(--s-2);">Publishing gaps</h1>
+    <p class="muted" style="margin-bottom: var(--s-6); font-size: 15px;">Clusters of orphans with no strong source page on your site. Write the pillar piece and these orphans get a parent.</p>
+
+    <ul data-testid="gap-list" style="list-style: none; padding: 0; margin: 0;">
+      <li data-empty class="muted">Loading clusters…</li>
+    </ul>
+  </div>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>

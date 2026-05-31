@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connect a site — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="workbench" data-page="sites-new">
+
+<main class="container container--prose" style="padding: var(--s-7) var(--s-5);">
+
+  <h1 style="margin-bottom: var(--s-3);">Connect a site.</h1>
+  <p class="muted" style="margin-bottom: var(--s-6); font-size: 15px;">Three steps. Sixty seconds. We do not store unencrypted credentials.</p>
+
+  <form id="connect-form" novalidate>
+
+    <div class="field" style="margin-bottom: var(--s-5);">
+      <label class="field__label" for="site-url">Site URL</label>
+      <input class="input mono" type="url" id="site-url" name="site_url" placeholder="https://your-site.com" required autocomplete="url" data-testid="site-url">
+      <p class="field__help">Top-level address. We auto-detect https.</p>
+    </div>
+
+    <fieldset style="border: none; padding: 0; margin: 0 0 var(--s-5);">
+      <legend class="field__label" style="margin-bottom: var(--s-3);">CMS</legend>
+      <div class="radio-group">
+        <label class="radio radio--selected" data-testid="cms-wp">
+          <input type="radio" name="cms" value="wordpress" checked>
+          <span>
+            <span class="radio__title">WordPress</span>
+            <span class="radio__desc">REST API via Application Password.</span>
+          </span>
+        </label>
+        <label class="radio" data-testid="cms-webflow">
+          <input type="radio" name="cms" value="webflow">
+          <span>
+            <span class="radio__title">Webflow</span>
+            <span class="radio__desc">CMS API via API key. Available from v1.5.</span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="field" style="margin-bottom: var(--s-5);">
+      <label class="field__label" for="wp-user">WordPress username</label>
+      <input class="input mono" type="text" id="wp-user" name="wp_user" placeholder="admin" autocomplete="username" data-testid="wp-user">
+    </div>
+
+    <div class="field" style="margin-bottom: var(--s-3);">
+      <label class="field__label" for="wp-pass">Application Password</label>
+      <input class="input mono" type="password" id="wp-pass" name="wp_pass" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" data-testid="wp-pass">
+      <p class="field__help">Application Password is the WordPress-recommended way. Takes 60 seconds. Walk-through below.</p>
+    </div>
+
+    <details class="accordion" style="margin-bottom: var(--s-5);">
+      <summary>Walk-through</summary>
+      <div class="accordion__body">
+        <ol>
+          <li>In wp-admin, open <strong>Users → Profile</strong>.</li>
+          <li>Scroll to <strong>Application Passwords</strong>, type the name <code>recto</code>, click <strong>Add New</strong>.</li>
+          <li>Copy the generated password (24 characters with spaces) and paste it into the field above.</li>
+        </ol>
+        <p style="margin-top: var(--s-3);" class="muted">If you do not see Application Passwords, your host has disabled them. Use the JWT fallback (Settings → Integrations once connected).</p>
+      </div>
+    </details>
+
+    <button class="btn btn--primary btn--lg" type="submit" data-testid="connect-btn">Connect site</button>
+
+  </form>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+<script>
+  // CSS radio selection helper — visual only. Real submit is wired in pages.js.
+  document.querySelectorAll('input[name="cms"]').forEach(r => r.addEventListener('change', e => {
+    document.querySelectorAll('.radio').forEach(l => l.classList.remove('radio--selected'));
+    e.target.closest('.radio').classList.add('radio--selected');
+  }));
+</script>
+</body>
+</html>

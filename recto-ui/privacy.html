@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Privacy — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="What data recto collects, how it's stored, and what we never do with it.">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body>
+
+<header class="nav" role="banner">
+  <div class="nav__inner">
+    <a class="nav__brand" href="/" aria-label="recto, home">recto</a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#how">How it works</a>
+      <a href="/#tiers">Tiers</a>
+      <a href="/app/auth.html">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section style="padding: var(--s-8) 0;">
+    <div class="container container--marketing" style="max-width: 720px;">
+      <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-3);">Privacy</p>
+      <h1 style="margin-bottom: var(--s-2);">What we keep, and why.</h1>
+      <p class="muted" style="margin-bottom: var(--s-6);">Last updated 2026-05-29.</p>
+
+      <h2>Plain version.</h2>
+      <p>recto reads your site to find orphan pages. To do that we need three things: an email so you can log in, a credential to publish links back to your CMS, and (optionally) read-access to Google Search Console so we can rank orphans by lost impressions. We don't sell any of it. We don't share it with advertisers. We can't access your credentials in plaintext after you submit them — they're encrypted at rest with a key the application server doesn't store.</p>
+
+      <h2>What we collect.</h2>
+      <ul>
+        <li><strong>Your email address.</strong> Used to send magic-link sign-in emails and the occasional product update (you can opt out of digests from the settings page; sign-in emails are not optional). Never sold, never shared.</li>
+        <li><strong>WordPress Application Password (or equivalent CMS credential).</strong> Encrypted with AES-256-GCM under a key stored separately from the application database. Used only to publish approved links to your site and to verify those links remain live.</li>
+        <li><strong>Google Search Console refresh token (if you connect GSC).</strong> Encrypted the same way. Used only to read your site's query and impression data for the properties you authorize. We read; we never write.</li>
+        <li><strong>A copy of your published site content.</strong> When recto crawls your site we cache HTML excerpts, headings, anchor text, and link graphs so we can rank orphans and propose insertion paragraphs. We do not store passwords or admin-only content. Pages behind a login are never accessed.</li>
+        <li><strong>Operational metadata.</strong> Timestamps of crawls, push attempts, success/failure codes, latency. Standard service-reliability data. Retained for 12 months then aggregated.</li>
+        <li><strong>BYOK API keys, if you provide them.</strong> Your OpenAI or Anthropic key is encrypted under the same envelope as the rest. recto uses it only to generate anchor-text suggestions when you click "regenerate".</li>
+      </ul>
+
+      <h2>What we don't do.</h2>
+      <ul>
+        <li>We don't sell your data.</li>
+        <li>We don't share it with advertisers, data brokers, or third-party analytics platforms.</li>
+        <li>We don't run third-party trackers on this site or inside the app. No Google Analytics, no Facebook Pixel, no LinkedIn Insight.</li>
+        <li>We don't fine-tune any AI model on your site content.</li>
+        <li>We don't auto-publish anything to your site without explicit per-link approval.</li>
+      </ul>
+
+      <h2>Who else touches the data.</h2>
+      <p>recto runs on Cloudflare Workers, D1 (SQL), KV, Vectorize, and R2. Cloudflare is the sole infrastructure provider for the application and database layer. Transactional email (sign-in links, weekly digests, push notifications) is delivered through Emailit. When you opt in to Google Search Console, requests for query and impression data go to Google's API under your authorization. That is the complete list of sub-processors.</p>
+
+      <h2>How long we keep it.</h2>
+      <p>Site content, link graphs, and orphan caches are retained while your account is active. If you delete your account, all credentials, BYOK keys, and GSC tokens are purged within 24 hours. Crawl caches and audit logs are purged within 30 days. Aggregated, non-identifiable metrics may be retained for product analysis.</p>
+
+      <h2>Your rights.</h2>
+      <p>You can request export or deletion of all data attached to your email by writing to <a href="mailto:hello@rectoapp.com">hello@rectoapp.com</a>. We respond within 7 days. If you're in the EU/UK, this includes your GDPR rights of access, rectification, erasure, restriction, portability, and objection. If you're in California, it includes your CCPA rights of access and deletion.</p>
+
+      <h2>Cookies.</h2>
+      <p>One cookie: a signed session token used for authentication. Strictly necessary, no consent banner needed. No advertising or analytics cookies are set by recto.</p>
+
+      <h2>Children.</h2>
+      <p>recto is a B2B SaaS tool. We don't knowingly collect data from anyone under 16.</p>
+
+      <h2>Changes.</h2>
+      <p>If we update this policy in a material way, we email every active user 30 days before the change takes effect. Prior versions are archived at <a href="mailto:hello@rectoapp.com">hello@rectoapp.com</a> on request.</p>
+
+      <h2>Contact.</h2>
+      <p>Questions, exports, deletions: <a href="mailto:hello@rectoapp.com">hello@rectoapp.com</a>.</p>
+
+      <p style="margin-top: var(--s-7); padding-top: var(--s-4); border-top: 1px solid var(--rule);"><a href="/terms.html">Terms of service →</a></p>
+    </div>
+  </section>
+</main>
+
+<footer style="padding: var(--s-6) 0; border-top: 1px solid var(--rule);">
+  <div class="container container--marketing" style="display: flex; gap: var(--s-4); font-size: 14px; color: var(--ink-soft);">
+    <span>© 2026 recto</span>
+    <a href="/privacy.html" style="color: var(--ink-mid);">Privacy</a>
+    <a href="/terms.html" style="color: var(--ink-mid);">Terms</a>
+    <a href="mailto:hello@rectoapp.com" style="color: var(--ink-mid);">Contact</a>
+  </div>
+</footer>
+
+</body>
+</html>

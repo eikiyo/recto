@@ -1,0 +1,132 @@
+name = "recto-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Custom domain — bind your own once deployed. CF creates the proxied DNS
+# record + cert automatically. Left commented so `wrangler dev` works on a
+# fresh clone with no domain configured.
+# routes = [
+#   { pattern = "api.your-domain.com", custom_domain = true }
+# ]
+
+# Local dev defaults; production values overridden via Cloudflare dashboard.
+[vars]
+RECTO_ENV = "prod"
+RECTO_PUBLIC_ORIGIN = "https://your-domain.com"
+
+# D1 — create with `wrangler d1 create recto`, then paste the printed id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "recto"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+migrations_dir = "src/db/migrations"
+
+# KV — create with `wrangler kv namespace create KV`, then paste the id below.
+# (sessions, rate limits, GSC ETag cache)
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Vectorize (one index name pattern: site-<site_id>)
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "recto-embeddings"
+
+# R2 (cold blobs: audit archive, email previews).
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "recto-archive"
+
+# Queues
+[[queues.producers]]
+binding = "Q_CRAWL"
+queue = "q-crawl"
+
+[[queues.producers]]
+binding = "Q_EMBED"
+queue = "q-embed"
+
+[[queues.producers]]
+binding = "Q_PUSH"
+queue = "q-push"
+
+[[queues.producers]]
+binding = "Q_VERIFY"
+queue = "q-verify"
+
+[[queues.producers]]
+binding = "Q_EMAIL"
+queue = "q-email"
+
+[[queues.producers]]
+binding = "Q_GSC_BACKFILL"
+queue = "q-gsc-backfill"
+
+[[queues.consumers]]
+queue = "q-crawl"
+max_batch_size = 1
+max_batch_timeout = 5
+
+[[queues.consumers]]
+queue = "q-gsc-backfill"
+max_batch_size = 1
+max_batch_timeout = 10
+max_concurrency = 2
+
+[[queues.consumers]]
+queue = "q-embed"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "q-push"
+max_batch_size = 1
+max_batch_timeout = 5
+
+[[queues.consumers]]
+queue = "q-verify"
+max_batch_size = 4
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "q-email"
+max_batch_size = 10
+max_batch_timeout = 10
+
+# Durable Object: CrawlSession (only stateful component, used for SSE crawl progress)
+[[durable_objects.bindings]]
+name = "CRAWL_SESSION"
+class_name = "CrawlSession"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["CrawlSession"]
+
+# Workers AI (embeddings + anchor-gen floor)
+[ai]
+binding = "AI"
+
+# Browser Rendering (used only when first-page fetch hints JS required)
+[browser]
+binding = "BROWSER"
+
+# Cron Triggers
+[triggers]
+crons = [
+  "0 6 * * *",       # GSC daily incremental @ 06:00 UTC
+  "0 * * * *",       # hourly: BYOK-threshold sweep + tz fan-out
+  "0 0 * * *",       # live-page reverify daily @ 00:00 UTC
+  "0 0 1 * *",       # 1st of month, 00:00 UTC — anchor credit reset
+  "0 1 1 * *"        # 1st of month, 01:00 UTC — audit + self-heal any reset drift
+]
+
+# Secrets (set via `wrangler secret put`; see .dev.vars.example for the full list):
+#   RECTO_KEK              — 256-bit envelope KEK
+#   APPSUMO_WEBHOOK_SECRET — HMAC secret for /api/webhooks/appsumo
+#   MAGIC_LINK_SECRET      — HMAC for magic-link tokens
+#   GSC_CLIENT_ID          — Google OAuth client
+#   GSC_CLIENT_SECRET      — Google OAuth secret
+
+[observability]
+enabled = true

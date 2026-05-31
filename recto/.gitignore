@@ -1,0 +1,12 @@
+node_modules
+.wrangler
+.dev.vars
+.dev.vars.local
+dist
+build
+.DS_Store
+*.log
+.turbo
+coverage
+.miniflare
+.cache

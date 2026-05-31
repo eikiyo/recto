@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>recto — orphan rescue and internal linking for serious sites</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="recto reads every page you have published, finds the orphans, and tells you the paragraph that should link to them. WordPress and Webflow. One-time purchase.">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body>
+
+<header class="nav" role="banner">
+  <div class="nav__inner">
+    <a class="nav__brand" href="/" aria-label="recto, home">recto</a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#founder">From the founder</a>
+      <a href="/app/auth.html" data-testid="cta-signin">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <div class="container container--marketing">
+      <h1 class="hero__phrase" data-testid="hero-phrase">Recover the traffic your site forgot.<br><span class="hero__phrase-counter">Without giving up the seat at the keyboard.</span></h1>
+      <p class="hero__lede">Orphan pages are bleeding impressions every day. recto finds them, ranks them by lost traffic, and shows you the exact paragraph to insert the link. You approve every change. WordPress and Webflow. One-time purchase.</p>
+      <div class="hero__cta">
+        <a class="btn btn--primary btn--lg" href="/app/auth.html" data-testid="cta-connect">Connect a site</a>
+        <a class="btn btn--lg" href="#how" data-testid="cta-howitworks">See how it works</a>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="promise-h" style="padding: var(--s-8) 0; border-bottom: 1px solid var(--rule);">
+    <div class="container container--marketing">
+      <h2 id="promise-h" class="sr-only">What recto promises</h2>
+      <div class="promise" style="padding: 0; border: none;">
+        <div>
+          <h3>You buy it once.</h3>
+          <p>One code, one site, $39. Stack codes for more sites — each adds 100 anchor credits per month. No recurring bill.</p>
+        </div>
+        <div>
+          <h3>We surface the orphans worth saving.</h3>
+          <p>Orphans ranked by Google Search Console impressions, not by page depth alone. Fix the one bleeding the most traffic first.</p>
+        </div>
+        <div>
+          <h3>You stay in the seat.</h3>
+          <p>recto suggests. You approve. Every link is pushed through the CMS REST API, lives in the published HTML, and survives if you cancel.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="howitworks" id="how">
+    <div class="container container--marketing">
+      <h2>How it works.</h2>
+      <ol>
+        <li><div><strong>Connect your site.</strong><span>WordPress Application Password or Webflow API key.</span></div></li>
+        <li><div><strong>Connect Google Search Console.</strong><span>Optional, but it ranks the orphans by traffic.</span></div></li>
+        <li><div><strong>Read the site.</strong><span>One pass, up to 10,000 pages.</span></div></li>
+        <li><div><strong>Surface the orphans.</strong><span>Ranked list, top of the page is the most valuable.</span></div></li>
+        <li><div><strong>Insert the link.</strong><span>Pick a candidate paragraph. recto pushes through the CMS API.</span></div></li>
+        <li><div><strong>Re-read on a schedule.</strong><span>Weekly by default. New orphans surface as you publish.</span></div></li>
+      </ol>
+    </div>
+  </section>
+
+
+  <section id="pricing" style="padding: var(--s-8) 0; border-bottom: 1px solid var(--rule);">
+    <div class="container container--marketing">
+      <h2>Pricing.</h2>
+      <p class="muted" style="margin-bottom: var(--s-5);">One price, one rule. Stack as many codes as you have sites.</p>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Table">
+      <table class="table tnum" style="background: var(--ground-raised); border: 1px solid var(--rule); border-radius: var(--r-2);">
+        <thead><tr><th>Codes</th><th>Price</th><th>What you get</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td class="num">$39 once</td><td>1 site, 100 anchor credits / month, all CMS pushes.</td></tr>
+          <tr><td>3</td><td class="num">$117 once</td><td>3 sites, 300 anchor credits / month.</td></tr>
+          <tr><td>10</td><td class="num">$390 once</td><td>10 sites, 1,000 anchor credits / month.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="muted" style="margin-top: var(--s-4); font-size: 14px;">Credits reset on the 1st of each month. They don't carry over. Need more? Paste your own OpenAI or Anthropic key — recto routes anchor calls through it at no cost to you and the credit meter stops.</p>
+    </div>
+  </section>
+
+  <section class="founder" id="founder">
+    <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-4);">From the founder</p>
+    <blockquote>
+      I built recto because every internal-linking tool I bought either disappeared the links when I cancelled, ignored Google Search Console, or charged a monthly subscription for what is fundamentally a one-time read of a finite site. recto is the tool I wanted. It is a tool, not a suite, and it stays that way.
+    </blockquote>
+    <svg class="signature" viewBox="0 0 240 56" aria-hidden="true" focusable="false" width="180" height="42">
+      <path d="M10 38 C 18 18, 30 18, 32 38 M 26 30 L 44 30 M 48 38 L 48 22 C 50 16, 58 16, 58 26 L 58 38 M 64 38 L 64 22 M 64 22 C 68 16, 78 18, 78 28 M 84 38 C 90 22, 98 22, 100 38 M 110 38 C 120 14, 128 14, 130 38 C 132 50, 124 52, 122 44 M 144 38 L 144 16 M 138 24 L 152 24 M 156 38 L 156 22 C 160 16, 170 18, 170 28 M 178 38 C 184 22, 192 22, 196 38 M 204 14 C 208 22, 208 30, 202 38" stroke="#1A1612" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <cite>Eikiyo · founder · solo operator, prior 8 years content marketing at three Berlin-based B2B SaaS companies. recto is my third independent project.</cite>
+  </section>
+
+  <section style="padding: var(--s-8) 0; border-top: 1px solid var(--rule);">
+    <div class="container container--marketing">
+      <p style="font-family: var(--font-display); font-size: 28px; line-height: 1.35; color: var(--ink-deep); max-width: 640px; margin-bottom: var(--s-5); font-style: italic;">Notes in the margins of your site.</p>
+      <p style="font-family: var(--font-display); font-size: 20px; color: var(--ink-mid); max-width: 640px;">Ready to read your site? <a href="/app/auth.html" style="color: var(--ink-deep);" data-testid="cta-bottom">Sign in.</a></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="container container--marketing" style="display: flex; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap;">
+    <span>© 2026 recto. Built by one person.</span>
+    <span>
+      <a href="/terms.html">Terms</a> ·
+      <a href="/privacy.html">Privacy</a> ·
+      <a href="/changelog.html">Changelog</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>

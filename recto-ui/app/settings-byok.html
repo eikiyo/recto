@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="settings" data-page="settings-byok">
+
+<main class="container container--prose" style="padding: var(--s-6) var(--s-5);">
+
+  <h1 style="margin-bottom: var(--s-2);">Settings</h1>
+  <p class="muted" style="margin-bottom: var(--s-6); font-size: 14px;">License, BYOK keys, and integrations.</p>
+
+  <section style="margin-bottom: var(--s-7);">
+    <h3 style="margin-bottom: var(--s-3);">License</h3>
+    <div class="card">
+      <table class="table tnum" style="border: none;">
+        <tbody>
+          <tr><th>Account</th><td class="mono" data-testid="license-email">…</td></tr>
+          <tr><th>Codes</th><td class="mono" data-testid="license-tier">…</td></tr>
+          <tr><th>Sites</th><td class="mono" data-testid="license-sites">…</td></tr>
+          <tr><th>Anchor credits</th><td class="mono" data-testid="license-credits">…</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="font-size: 13px; margin-top: var(--s-3);">1 code = 1 site + 100 anchor credits per month. Credits don't carry over — every reset is a clean 100 per code. Stack codes: <a href="https://appsumo.com/products/recto" target="_blank" rel="noopener">appsumo.com/products/recto</a></p>
+    </div>
+  </section>
+
+  <section style="margin-bottom: var(--s-7);">
+    <h3 style="margin-bottom: var(--s-3);">Bring your own key (BYOK)</h3>
+    <p class="muted" style="font-size: 14px; margin-bottom: var(--s-4);" data-testid="byok-cost-note">After your included anchor credits, recto uses the OpenAI or Anthropic key you provide. We do not bill for these calls. Estimated cost: ~$0.06 per 1,000 anchors.</p>
+
+    <form id="byok-form" autocomplete="off">
+      <div class="field" style="margin-bottom: var(--s-4);">
+        <label class="field__label" for="openai-key">OpenAI API key <span class="muted" data-testid="openai-state"></span></label>
+        <input class="input mono" type="password" id="openai-key" name="openai_key" placeholder="sk-…" autocomplete="off" data-testid="openai-key">
+        <p class="field__help">Encrypted at rest. Used only for anchor generation. Leave blank to keep the existing key.</p>
+      </div>
+
+      <div class="field" style="margin-bottom: var(--s-4);">
+        <label class="field__label" for="anthropic-key">Anthropic API key (optional) <span class="muted" data-testid="anthropic-state"></span></label>
+        <input class="input mono" type="password" id="anthropic-key" name="anthropic_key" placeholder="sk-ant-…" autocomplete="off" data-testid="anthropic-key">
+      </div>
+
+      <div class="field" style="margin-bottom: var(--s-4);">
+        <label class="field__label" style="display:flex; align-items:center; gap: var(--s-2);">
+          <input type="checkbox" id="digest-opt-in" data-testid="digest-opt-in">
+          Send me the weekly digest (Fridays 09:00 local).
+        </label>
+      </div>
+
+      <button class="btn btn--primary" type="submit" data-testid="save-keys">Save</button>
+      <button class="btn" type="button" data-testid="clear-openai" id="clear-openai">Remove OpenAI key</button>
+      <button class="btn" type="button" data-testid="clear-anthropic" id="clear-anthropic">Remove Anthropic key</button>
+    </form>
+  </section>
+
+  <section>
+    <h3 style="margin-bottom: var(--s-3);">Integrations</h3>
+    <div class="card">
+      <p style="margin-bottom: var(--s-3);">Google Search Console: <span class="badge" data-testid="gsc-state">not connected</span></p>
+      <p>WordPress: <span class="badge badge--ok" data-testid="wp-state">…</span></p>
+    </div>
+  </section>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>

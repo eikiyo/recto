@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Email previews — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-page="emails">
+
+<main class="container container--prose" style="padding: var(--s-7) var(--s-5);">
+
+  <h1 style="margin-bottom: var(--s-5);">Email previews</h1>
+  <p class="muted" style="margin-bottom: var(--s-6);">Rendered from the live templates in apps/workers/api/src/emails/. Plain-text-in-monospace. No header image, no buttons, no tracking pixel.</p>
+
+  <article class="email-frame">
+<div class="email-meta">From: recto &lt;hello@rectoapp.com&gt; · To: customer@example.com · Subject: Sign in to recto</div>
+Sign in to recto.
+
+Use this link within 15 minutes:
+https://api.rectoapp.com/api/auth/callback?token=…
+
+If you didn't request this, ignore the email. The link expires on its own.
+  </article>
+
+  <article class="email-frame">
+<div class="email-meta">From: recto &lt;hello@rectoapp.com&gt; · To: customer@example.com · Subject: recto is ready.</div>
+recto is ready.
+
+Your code is redeemed. 1 code, 1 site, 100 anchor credits per month.
+Credits reset on the 1st. They do not carry over.
+
+Open the dashboard, connect your first site, and run the first crawl.
+The crawl returns within an hour for most sites. We email you when it lands.
+
+https://rectoapp.com/app
+  </article>
+
+  <article class="email-frame">
+<div class="email-meta">From: recto &lt;hello@rectoapp.com&gt; · To: customer@example.com · Subject: Another code on your recto account</div>
+Code stacked.
+
+You now have 3 codes. That is 3 sites and 300 anchor credits per month.
+Your existing sites and pushes carry forward unchanged.
+The extra credits show up in this month's pool immediately, then reset to the new ceiling on the 1st.
+
+https://rectoapp.com/app
+  </article>
+
+  <article class="email-frame">
+<div class="email-meta">From: recto &lt;hello@rectoapp.com&gt; · To: customer@example.com · Subject: Crawl complete: https://your-site.com</div>
+Crawl complete: https://your-site.com
+
+842 pages read. The workbench shows the orphans ranked by impressions.
+
+https://rectoapp.com/app
+  </article>
+
+  <article class="email-frame">
+<div class="email-meta">From: recto &lt;hello@rectoapp.com&gt; · To: customer@example.com · Subject: Your recto digest</div>
+This week on the sites recto reads for you:
+
+5 new orphans. 3 links verified live.
+
+Top three orphans by impressions:
+  /posts/index-funds-for-beginners — 1,240 impressions, no inbound links
+  /notes/orphan-pages-explained — 612 impressions, no inbound links
+  /posts/etf-vs-mutual-fund — 408 impressions, no inbound links
+
+Open the workbench to fix them.
+
+https://rectoapp.com/app
+  </article>
+
+  <article class="email-frame">
+<div class="email-meta">From: recto &lt;hello@rectoapp.com&gt; · To: customer@example.com · Subject: recto: 12 anchor credits remaining</div>
+12 anchor credits left in your pool.
+
+Two paths from here:
+  1. Add an OpenAI or Anthropic key (BYOK). Anchor generation continues with no cap; you pay the model provider directly.
+  2. Wait for next month. The pool refills.
+
+BYOK keys live encrypted in your account and never leave Cloudflare.
+
+https://rectoapp.com/app/settings-byok.html
+  </article>
+
+</main>
+
+<script src="/scripts/app-shell.js" defer></script>
+</body>
+</html>

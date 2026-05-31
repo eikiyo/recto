@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Audit log — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="audit" data-page="audit">
+
+<main class="container container--table" style="padding: var(--s-6) var(--s-5);">
+
+  <h1 style="margin-bottom: var(--s-2);">Audit log</h1>
+  <p class="muted" style="margin-bottom: var(--s-4); font-size: 14px;">Every link recto has pushed. Live-page status verified on demand.</p>
+
+  <div class="legend" data-testid="audit-legend" aria-label="Status legend">
+    <span class="legend__item"><span class="badge badge--ok"><span class="badge__glyph" aria-hidden="true">✓</span>verified live</span> — link is present in published HTML</span>
+    <span class="legend__item"><span class="badge badge--warn"><span class="badge__glyph" aria-hidden="true">!</span>verify pending</span> — push succeeded; we will check live-page within 60 seconds</span>
+    <span class="legend__item"><span class="badge badge--risk"><span class="badge__glyph" aria-hidden="true">✕</span>push failed</span> — CMS rejected the write; fix the credentials and retry</span>
+  </div>
+
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Push history table">
+    <table class="table" aria-label="Push history">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Site</th>
+          <th>From → To</th>
+          <th>Anchor</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody data-testid="audit-list">
+        <tr data-empty><td colspan="6" class="muted" style="padding: var(--s-3); text-align:center;">Loading recent pushes…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>

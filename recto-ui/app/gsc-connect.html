@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connect Google Search Console — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="workbench" data-page="gsc-connect">
+
+<main class="container container--prose" style="padding: var(--s-7) var(--s-5);">
+
+  <h1 style="margin-bottom: var(--s-4);">Connect Google Search Console.</h1>
+
+  <p style="margin-bottom: var(--s-3);">We read your impressions. We do not write.</p>
+  <p class="muted" style="margin-bottom: var(--s-5);">Revoke any time at <a href="https://myaccount.google.com" target="_blank" rel="noopener">myaccount.google.com</a>.</p>
+
+  <div class="card card--inset" style="margin-bottom: var(--s-5);">
+    <h4 style="margin-bottom: var(--s-3);">What recto reads from your GSC</h4>
+    <ul style="padding-left: var(--s-5); color: var(--ink-mid); font-size: 14px;">
+      <li>Impressions, clicks, and average position per URL.</li>
+      <li>Last 90 days of data, then a daily incremental pull.</li>
+    </ul>
+    <h4 style="margin-top: var(--s-4); margin-bottom: var(--s-3);">What recto never writes</h4>
+    <ul style="padding-left: var(--s-5); color: var(--ink-mid); font-size: 14px;">
+      <li>Sitemaps, settings, indexed-URL requests, anything in Search Console UI.</li>
+    </ul>
+  </div>
+
+  <button class="btn btn--primary btn--lg" type="button" data-testid="gsc-connect">Continue with Google</button>
+  <a class="btn btn--ghost btn--lg" href="/app/workbench.html" data-testid="cta-skip">Skip for now</a>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>

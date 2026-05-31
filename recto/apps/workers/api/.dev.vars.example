@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────────────────
+# recto-api — local dev secrets template
+#
+# Copy this file to `.dev.vars` (same directory) and fill in your own values:
+#     cp .dev.vars.example .dev.vars
+#
+# `.dev.vars` is git-ignored and read automatically by `wrangler dev`.
+# NEVER commit `.dev.vars`. In production these are set with:
+#     wrangler secret put <NAME>
+# ─────────────────────────────────────────────────────────────────────────
+
+# AES-256-GCM key-encryption key (KEK), 32 bytes, base64-encoded.
+# Used to envelope-encrypt stored CMS credentials at rest.
+# Generate a fresh one:  openssl rand -base64 32
+RECTO_KEK="REPLACE_WITH_BASE64_32_BYTE_KEY"
+
+# HMAC secret for magic-link tokens and session cookies. Any long random string.
+# Generate:  openssl rand -hex 32
+MAGIC_LINK_SECRET="REPLACE_WITH_RANDOM_STRING"
+
+# HMAC secret used to verify inbound AppSumo purchase webhooks.
+# Get it from your AppSumo partner dashboard (or any random string if unused).
+APPSUMO_WEBHOOK_SECRET="REPLACE_WITH_RANDOM_STRING"
+
+# Google Search Console OAuth client (project must enable the Search Console API).
+# Create at: https://console.cloud.google.com/apis/credentials
+# Full walkthrough: ops/runbooks/gsc-setup.md
+GSC_CLIENT_ID="REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID"
+GSC_CLIENT_SECRET="REPLACE_WITH_GOOGLE_OAUTH_CLIENT_SECRET"
+# Google Cloud project id that owns the OAuth client (not a secret).
+GSC_PROJECT_ID="REPLACE_WITH_GOOGLE_CLOUD_PROJECT_ID"
+# OAuth redirect URI registered on the client — your API callback URL.
+GSC_REDIRECT_URI="http://localhost:8787/api/auth/gsc/callback"
+
+# Runtime mode + public origin. Override the wrangler.toml [vars] for local dev.
+RECTO_ENV="dev"
+RECTO_PUBLIC_ORIGIN="http://localhost:8765"
+
+# ── Transactional email (optional) ──
+# The mailer tries transports in order: Emailit → Resend → MailChannels.
+# Leave both blank to fall back to MailChannels (no key required for dev).
+
+# Emailit API key — https://emailit.com  (Settings → API Keys)
+EMAILIT_API_KEY=""
+
+# Resend API key (legacy fallback) — https://resend.com/api-keys
+RESEND_API_KEY=""

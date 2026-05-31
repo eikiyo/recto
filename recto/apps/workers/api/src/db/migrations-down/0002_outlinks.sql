@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS outlinks_slug;
+DROP TABLE IF EXISTS outlinks;

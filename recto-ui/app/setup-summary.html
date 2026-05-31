@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Site connected — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="workbench" data-page="setup-summary">
+
+<main class="container container--prose" style="padding: var(--s-7) var(--s-5);">
+
+  <p class="mono" data-testid="summary-status" style="font-size: 12px; color: var(--forest); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-3);">…</p>
+  <h1 style="margin-bottom: var(--s-5);" data-testid="summary-host">…</h1>
+
+  <div class="banner" id="gsc-error-banner" hidden style="margin-bottom: var(--s-5); border: 1px solid var(--rule-strong); padding: var(--s-3);" data-testid="summary-gsc-error">
+    <span>Google Search Console connection failed: <span data-testid="summary-gsc-error-code">…</span></span>
+  </div>
+
+  <div class="card" style="margin-bottom: var(--s-5);" data-testid="summary-card">
+    <table class="table tnum" style="border: none;">
+      <tbody>
+        <tr><th>CMS</th><td class="num" data-testid="summary-cms">…</td></tr>
+        <tr><th>Last crawl</th><td class="num" data-testid="summary-last-crawl">never crawled</td></tr>
+        <tr><th>Pages indexed</th><td class="num" data-testid="summary-pages">—</td></tr>
+        <tr><th>Search Console</th><td class="num" data-testid="summary-gsc">not connected</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-bottom: var(--s-3);">Next step.</h3>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-bottom: var(--s-4);">
+    <a class="btn btn--primary btn--lg" id="cta-gsc" href="#" data-testid="cta-gsc">Connect Google Search Console</a>
+    <a class="btn btn--lg" id="cta-skip-gsc" href="#" data-testid="cta-skip-gsc">Read site now (skip GSC)</a>
+  </div>
+  <p class="muted" style="font-size: 13px;">With GSC, orphans rank by lost impressions. Without, by page depth only.</p>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>

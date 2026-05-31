@@ -1,0 +1,116 @@
+name: ci
+
+# Full PR gate. Every job must pass for merge.
+
+on:
+  pull_request:
+    paths:
+      - 'recto/**'
+      - '.github/workflows/**'
+  push:
+    branches: [main]
+
+defaults:
+  run:
+    working-directory: recto
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for gitleaks
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  typecheck-test-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: TypeScript strict compile
+        run: pnpm --filter @recto/api typecheck
+      - name: ESLint (voice + standard)
+        run: pnpm --filter @recto/api lint
+      - name: Unit + property + chaos vitest
+        run: pnpm --filter @recto/api test
+      - name: Voice plugin tests
+        run: pnpm --filter @recto/eslint-plugin-voice test
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Integration smoke
+        run: bash scripts/smoke.sh
+      - name: Full integration assertions
+        run: bash scripts/integration.sh
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Endpoint fuzz (no 5xx allowed)
+        run: bash scripts/fuzz.sh
+
+  # Manual-only — k6 burns runner minutes, only run on explicit dispatch.
+  load:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install k6 + jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq gnupg ca-certificates
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Load — read-heavy (smoke profile)
+        run: TARGET_VUS=200 RAMP=20s HOLD=30s RAMP_DOWN=10s MODE=smoke bash scripts/load.sh read
+      - name: Load — webhook flood
+        run: bash scripts/load.sh webhook
+      - name: Load — write burst (realistic)
+        run: bash scripts/load.sh write

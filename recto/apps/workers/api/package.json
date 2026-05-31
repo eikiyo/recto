@@ -1,0 +1,35 @@
+{
+  "name": "@recto/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --persist-to .miniflare",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate:local": "wrangler d1 migrations apply recto --local --persist-to .miniflare",
+    "db:migrate:prod": "wrangler d1 migrations apply recto --remote"
+  },
+  "dependencies": {
+    "@recto/db": "workspace:*",
+    "@recto/shared": "workspace:*",
+    "drizzle-orm": "0.36.0",
+    "hono": "4.6.9",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.5.27",
+    "@cloudflare/workers-types": "4.20241112.0",
+    "@recto/eslint-plugin-voice": "workspace:*",
+    "@typescript-eslint/parser": "8.15.0",
+    "drizzle-kit": "0.28.0",
+    "eslint": "9.14.0",
+    "fast-check": "^4.8.0",
+    "typescript": "5.6.3",
+    "vitest": "2.1.4",
+    "wrangler": "3.86.0"
+  }
+}

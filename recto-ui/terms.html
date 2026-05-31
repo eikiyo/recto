@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terms — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="The terms you agree to when you use recto.">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body>
+
+<header class="nav" role="banner">
+  <div class="nav__inner">
+    <a class="nav__brand" href="/" aria-label="recto, home">recto</a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#how">How it works</a>
+      <a href="/#tiers">Tiers</a>
+      <a href="/app/auth.html">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section style="padding: var(--s-8) 0;">
+    <div class="container container--marketing" style="max-width: 720px;">
+      <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-3);">Terms of service</p>
+      <h1 style="margin-bottom: var(--s-2);">The deal.</h1>
+      <p class="muted" style="margin-bottom: var(--s-6);">Last updated 2026-05-29.</p>
+
+      <h2>What recto is.</h2>
+      <p>recto is a software service that crawls websites you own, surfaces orphan pages, and publishes internal links you approve back to your CMS. It is operated by Seyed Mosayeb Alam ("we", "us") and reachable at <a href="mailto:hello@rectoapp.com">hello@rectoapp.com</a>.</p>
+
+      <h2>Your account.</h2>
+      <p>You sign in with an email address. You're responsible for keeping that mailbox secure. You may not share access to the account, resell licenses you bought through AppSumo or any other marketplace, or attempt to use a single license across more sites than the tier allows. We don't enforce this automatically beyond the per-tier site cap, but we will revoke access for abuse.</p>
+
+      <h2>Licenses and payment.</h2>
+      <ul>
+        <li>recto is sold as a <strong>lifetime deal</strong>. There is no recurring subscription.</li>
+        <li>One code = one tier of access. Codes can be stacked: each additional code raises the site cap (1 → 3 → 10) and adds 100 anchor credits.</li>
+        <li>Anchor credits are consumed when recto generates an anchor suggestion using the included AI floor. Bringing your own OpenAI or Anthropic API key bypasses the credit meter entirely.</li>
+        <li>Refunds are honored per the policy of the marketplace you bought through. AppSumo's standard 60-day refund applies to AppSumo purchases. We do not issue refunds outside the marketplace window.</li>
+      </ul>
+
+      <h2>Acceptable use.</h2>
+      <p>You may use recto only on websites you own or have explicit written authorization to publish to. You may not use recto to:</p>
+      <ul>
+        <li>Insert links into sites you don't own or operate.</li>
+        <li>Build link networks, PBNs, or otherwise violate Google's webmaster guidelines.</li>
+        <li>Scrape sites you don't own at high volume.</li>
+        <li>Distribute the software, reverse-engineer the binary, or attempt to access another user's data.</li>
+      </ul>
+      <p>If you connect a site you don't have authorization to modify, you accept full responsibility for any consequences. recto will publish what you approve.</p>
+
+      <h2>Credentials you give us.</h2>
+      <p>You're responsible for the WordPress Application Password (or equivalent) that you paste into recto. Revoke it at any time from your wp-admin to immediately cut recto off from your site. Existing published links remain — they're real HTML in your CMS and survive after we lose access.</p>
+
+      <h2>Google Search Console connection.</h2>
+      <p>If you connect Search Console, recto reads query and impression data through Google's API under the scope you authorize. You can revoke access at any time from your Google account permissions page. recto will lose the ability to rank orphans by lost impressions but continues to function on crawl-depth signal alone.</p>
+
+      <h2>AI providers.</h2>
+      <p>Anchor-text suggestions are produced by Workers AI (Cloudflare's hosted models) by default, or by your own OpenAI / Anthropic key if you BYOK. We don't fine-tune or train any model on your site content. Suggestions are deterministic per page; you can regenerate or override before approval.</p>
+
+      <h2>What we don't promise.</h2>
+      <ul>
+        <li>We don't promise specific SEO outcomes. Internal linking is one of many ranking factors and we make no guarantees about traffic uplift.</li>
+        <li>We don't promise 100% uptime. recto runs on Cloudflare Workers, which has historically had ~99.99% availability; we inherit that.</li>
+        <li>We don't promise to keep every feature forever. We may retire under-used features with 30 days' notice if maintenance burden outweighs value. Core promised functionality (orphan ranking, push-to-CMS, link verification) stays.</li>
+      </ul>
+
+      <h2>Liability.</h2>
+      <p>To the maximum extent permitted by law, our total liability to you for any claim arising out of your use of recto is capped at the amount you paid for your license. We are not liable for indirect, incidental, or consequential damages — including loss of revenue, traffic, or rankings. If a published link breaks something on your site, you can remove it directly from your CMS at any time.</p>
+
+      <h2>Service termination.</h2>
+      <p>You can delete your account at any time from the settings page. We can suspend or terminate accounts for breach of the acceptable-use section above; in that case any unused anchor credits are forfeit. If recto as a service shuts down, we'll give 90 days' notice and provide an export of your data plus a list of every link recto has pushed (so you can keep or remove them on your own schedule).</p>
+
+      <h2>Changes to these terms.</h2>
+      <p>If we update these terms in a way that affects your rights or obligations, we email every active user 30 days before the change takes effect.</p>
+
+      <h2>Governing law.</h2>
+      <p>These terms are governed by the laws of Sweden. Disputes are resolved in the courts of Stockholm, Sweden. If you're a consumer in the EU/UK, this clause doesn't override mandatory consumer protections in your jurisdiction.</p>
+
+      <h2>Contact.</h2>
+      <p>Questions, refunds, deletions: <a href="mailto:hello@rectoapp.com">hello@rectoapp.com</a>.</p>
+
+      <p style="margin-top: var(--s-7); padding-top: var(--s-4); border-top: 1px solid var(--rule);"><a href="/privacy.html">Privacy policy →</a></p>
+    </div>
+  </section>
+</main>
+
+<footer style="padding: var(--s-6) 0; border-top: 1px solid var(--rule);">
+  <div class="container container--marketing" style="display: flex; gap: var(--s-4); font-size: 14px; color: var(--ink-soft);">
+    <span>© 2026 recto</span>
+    <a href="/privacy.html" style="color: var(--ink-mid);">Privacy</a>
+    <a href="/terms.html" style="color: var(--ink-mid);">Terms</a>
+    <a href="mailto:hello@rectoapp.com" style="color: var(--ink-mid);">Contact</a>
+  </div>
+</footer>
+
+</body>
+</html>

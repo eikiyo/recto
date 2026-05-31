@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Waitlist — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="recto opens new sites in cohorts so every first read finishes in days, not weeks. Hold a seat for the next batch.">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+<style>
+  /* Page-local: inline waitlist form sits where .hero__cta would normally go.
+     Grid on desktop, stacked on narrow. No new colors, no new radii. */
+  .wl-form {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr auto;
+    gap: var(--s-3);
+    align-items: end;
+    max-width: 640px;
+  }
+  .wl-form .field__label {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 2px;
+  }
+  @media (max-width: 700px) {
+    .wl-form { grid-template-columns: 1fr; }
+    .wl-form .btn { width: 100%; }
+  }
+  .wl-meta {
+    margin-top: var(--s-4);
+    font-size: 13px;
+    color: var(--ink-soft);
+    max-width: 640px;
+  }
+  .wl-held {
+    border-top: 1px solid var(--rule);
+    padding-top: var(--s-5);
+    margin-top: var(--s-2);
+    max-width: 640px;
+  }
+  .wl-held h2 {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 28px;
+    line-height: 1.25;
+    margin-bottom: var(--s-3);
+  }
+  .wl-held p { color: var(--ink-mid); font-size: 15px; }
+  .wl-held .mono { font-size: 14px; }
+
+  /* "What recto does" — three editorial lines, hairline separators. */
+  .what-recto { padding: var(--s-8) 0; border-bottom: 1px solid var(--rule); }
+  .what-recto h2 { margin-bottom: var(--s-6); }
+  .what-recto ul { list-style: none; padding: 0; margin: 0; max-width: 720px; }
+  .what-recto li {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--ink-deep);
+    padding: var(--s-4) 0;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: var(--s-3);
+    align-items: baseline;
+  }
+  .what-recto li:last-child { border-bottom: none; }
+  .what-recto li::before {
+    content: counter(wr, decimal-leading-zero);
+    counter-increment: wr;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ochre-text);
+    letter-spacing: 0.04em;
+  }
+  .what-recto ul { counter-reset: wr; }
+  @media (max-width: 700px) { .what-recto li { font-size: 18px; } }
+</style>
+</head>
+<body>
+
+<header class="nav" role="banner">
+  <div class="nav__inner">
+    <a class="nav__brand" href="/" aria-label="recto, home">recto</a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#how">How it works</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#founder">From the founder</a>
+      <a href="/app/auth.html" data-testid="cta-signin">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <div class="container container--marketing">
+      <h1 class="hero__phrase">We're opening up access in batches.<br><span class="hero__phrase-counter">Sign up to hold a seat.</span></h1>
+      <p class="hero__lede">We open new sites in cohorts so every first read finishes in days, not weeks. Leave your name; we write when the next batch opens.</p>
+
+      <form class="wl-form" id="wl-form" novalidate aria-label="Waitlist signup">
+        <div class="field">
+          <label class="field__label" for="wl-name">Name</label>
+          <input class="input" id="wl-name" name="name" type="text" autocomplete="given-name" required data-testid="wl-name">
+        </div>
+        <div class="field">
+          <label class="field__label" for="wl-email">Email</label>
+          <input class="input" id="wl-email" name="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@yoursite.com" data-testid="wl-email">
+        </div>
+        <button class="btn btn--primary btn--lg" type="submit" data-testid="wl-submit">Hold a seat</button>
+      </form>
+
+      <p class="wl-meta" id="wl-meta">One email when the cohort opens. No newsletter. <a href="/privacy.html">Privacy</a>.</p>
+
+      <div class="wl-held" id="wl-held" hidden>
+        <h2>Held.</h2>
+        <p>We'll write to <span id="wl-held-email" class="mono"></span> when the next batch opens. Usually two to three weeks between cohorts.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="what-recto" aria-labelledby="what-recto-h">
+    <div class="container container--marketing">
+      <h2 id="what-recto-h">What recto does.</h2>
+      <ul>
+        <li>Reads every published page on your site, end to end.</li>
+        <li>Finds the orphans and ranks them by lost Search Console traffic.</li>
+        <li>Tells you the exact paragraph that should link.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="container container--marketing" style="display: flex; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap;">
+    <span>© 2026 recto. Built by one person.</span>
+    <span>
+      <a href="/terms.html">Terms</a> ·
+      <a href="/privacy.html">Privacy</a> ·
+      <a href="/changelog.html">Changelog</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+  // Same base-URL resolution as /scripts/api.js: localhost → :8787, Pages
+  // preview → workers.dev sibling, prod → api.<apex>. Keeps a single rule.
+  (function () {
+    var loc = window.location;
+    var isLocal = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
+    var API;
+    if (isLocal) {
+      API = 'http://localhost:8787';
+    } else if (/\.pages\.dev$/.test(loc.hostname)) {
+      API = 'https://recto-api.syedmosayebalam.workers.dev';
+    } else {
+      var apex = loc.hostname.replace(/^www\./, '');
+      API = loc.protocol + '//api.' + apex;
+    }
+
+    var form = document.getElementById('wl-form');
+    var meta = document.getElementById('wl-meta');
+    var held = document.getElementById('wl-held');
+    var btn = form.querySelector('button[type="submit"]');
+    var nameI = document.getElementById('wl-name');
+    var emailI = document.getElementById('wl-email');
+
+    function showError(msg) {
+      var err = document.getElementById('wl-err');
+      if (!err) {
+        err = document.createElement('p');
+        err.id = 'wl-err';
+        err.className = 'wl-meta';
+        err.style.color = 'var(--brick)';
+        meta.parentNode.insertBefore(err, meta.nextSibling);
+      }
+      err.textContent = msg;
+      err.hidden = false;
+    }
+
+    function showHeld(email, already) {
+      document.getElementById('wl-held-email').textContent = email;
+      if (already) {
+        var heldH = held.querySelector('h2');
+        var heldP = held.querySelector('p');
+        if (heldH) heldH.textContent = 'Already on the list.';
+        if (heldP) heldP.innerHTML = "We'll write to <span class=\"mono\">" + email.replace(/[<>&]/g, '') + "</span> when the next batch opens. Usually two to three weeks between cohorts.";
+      }
+      form.hidden = true;
+      meta.hidden = true;
+      var err = document.getElementById('wl-err');
+      if (err) err.hidden = true;
+      held.hidden = false;
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var name = nameI.value.trim();
+      var email = emailI.value.trim();
+      if (!name) { nameI.focus(); return; }
+      if (!email || email.indexOf('@') === -1) { emailI.focus(); return; }
+
+      btn.disabled = true;
+      var originalLabel = btn.textContent;
+      btn.textContent = 'Holding…';
+
+      fetch(API + '/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ name: name, email: email, source: 'waitlist-page' }),
+      })
+        .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+        .then(function (res) {
+          if (res.status === 200 && res.body && res.body.ok) {
+            showHeld(email, !!res.body.alreadySignedUp);
+            return;
+          }
+          if (res.status === 429) {
+            showError('Too many signups from this network. Try again in an hour.');
+          } else if (res.status === 400) {
+            showError('Check your name and email and try again.');
+          } else {
+            showError('Something went wrong on our end. Try again in a minute.');
+          }
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+        })
+        .catch(function () {
+          showError("We couldn't reach the server. Check your connection and try again.");
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+        });
+    });
+  })();
+</script>
+
+</body>
+</html>

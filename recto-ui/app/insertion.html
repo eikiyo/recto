@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Insertion view — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="orphans" data-page="insertion">
+
+<main class="container container--table" style="padding: var(--s-6) var(--s-5);">
+
+  <p style="margin-bottom: var(--s-4); font-size: 14px;">
+    <a href="/app/orphans.html" data-testid="back-to-orphans" id="back-link">← Orphans</a>
+    <span class="muted" style="margin: 0 var(--s-2);">·</span>
+    <span class="mono muted" data-testid="insertion-host">…</span>
+  </p>
+
+  <div class="insertion">
+
+    <!-- Left pane: orphan target -->
+    <section class="insertion__pane" aria-labelledby="orphan-h">
+      <p class="mono" style="font-size: 12px; color: var(--brick); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-2);">Orphan target</p>
+      <h2 id="orphan-h" data-testid="orphan-head">…</h2>
+      <p class="insertion__meta mono" data-testid="orphan-slug">…</p>
+
+      <div class="card card--inset" data-testid="orphan-excerpt-card" style="display: none;">
+        <h4 style="font-family: var(--font-body); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-mid); font-weight: 600; margin-bottom: var(--s-3);">First paragraphs</h4>
+        <p style="font-family: var(--font-display); font-size: 16px; line-height: 1.65; color: var(--ink-mid);" data-testid="orphan-excerpt"></p>
+      </div>
+    </section>
+
+    <!-- Right pane: candidates -->
+    <section class="insertion__pane" aria-labelledby="candidates-h">
+      <p class="mono" style="font-size: 12px; color: var(--indigo-dye); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-2);">Source candidates</p>
+      <h2 id="candidates-h">Where to link from</h2>
+      <p class="insertion__meta" data-testid="candidate-cap">Ranked by semantic similarity × source authority.</p>
+
+      <ul data-testid="candidate-list" style="list-style: none; padding: 0; margin: 0;">
+        <li data-empty class="muted" style="padding: var(--s-3);">Loading candidates…</li>
+      </ul>
+
+      <p class="muted" style="font-size: 13px; margin-top: var(--s-4);"><a href="#next" id="next-orphan">Move to next orphan →</a></p>
+
+    </section>
+
+  </div>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const siteId = params.get('siteId');
+  const backLink = document.getElementById('back-link');
+  if (backLink && siteId) backLink.href = '/app/orphans.html?siteId=' + encodeURIComponent(siteId);
+
+  document.getElementById('next-orphan').addEventListener('click', e => {
+    e.preventDefault();
+    if (siteId) location.href = '/app/orphans.html?siteId=' + encodeURIComponent(siteId);
+    else location.href = '/app/orphans.html';
+  });
+</script>
+</body>
+</html>

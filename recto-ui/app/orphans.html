@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orphans — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+</head>
+<body data-nav="orphans" data-page="orphans">
+
+<main class="container container--table" style="padding: var(--s-6) var(--s-5);">
+
+  <!-- No-sites empty state. pageOrphans toggles this on when the user has
+       not connected any site yet — replaces the previous silent redirect to
+       sites-new.html which made the nav look like it bounced back to
+       Workbench. -->
+  <section id="orphans-empty" data-testid="orphans-empty" hidden
+           style="padding: var(--s-7) var(--s-5); border: 1px solid var(--rule); border-radius: var(--r-2); background: var(--ground-raised); text-align: center;">
+    <h1 style="font-size: 28px; margin-bottom: var(--s-3);">Connect a site to find your orphans.</h1>
+    <p class="muted" style="font-size: 15px; max-width: 480px; margin: 0 auto var(--s-5);">recto reads every page on your site, ranks the ones that have no inbound links, and tells you the exact paragraph that should link to them.</p>
+    <a class="btn btn--primary btn--lg" href="/app/sites-new.html" data-testid="orphans-empty-cta">Connect a site →</a>
+  </section>
+
+  <div data-orphans-loaded style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--s-3); gap: var(--s-4); flex-wrap: wrap;">
+    <div>
+      <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-1);" data-testid="orphans-host">…</p>
+      <h1 style="font-size: 32px;">Orphans</h1>
+    </div>
+    <div style="display: flex; gap: var(--s-3); align-items: center;">
+      <span class="mono muted" style="font-size: 13px;" data-testid="orphans-last-read">…</span>
+      <button class="btn btn--sm" type="button" id="recrawl-btn" data-testid="recrawl-btn">Re-read</button>
+    </div>
+  </div>
+
+  <!-- GSC banner (shown when GSC not connected, hidden when wired). -->
+  <div data-orphans-loaded class="banner" id="gsc-banner" style="margin-bottom: var(--s-5); display: none;" data-testid="gsc-banner">
+    <span>Sorted by page depth. Connect Google Search Console for impression-weighted ranking.</span>
+    <a class="btn btn--sm btn--ghost" href="#" id="dismiss-banner" aria-label="Acknowledge GSC notice">Dismiss</a>
+  </div>
+
+  <div data-orphans-loaded class="table-wrap" tabindex="0" role="region" aria-label="Orphan pages table">
+    <table class="table" aria-label="Orphan pages ranked by score">
+      <thead>
+        <tr>
+          <th style="width: 50%;">Orphan page</th>
+          <th>Lost impressions (28d)</th>
+          <th>Score</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody data-testid="orphan-list">
+        <tr data-empty><td colspan="4" class="muted" style="padding: var(--s-3); text-align:center;">Loading orphans…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p data-orphans-loaded class="muted" style="margin-top: var(--s-4); font-size: 13px;"><span data-testid="orphan-count">0</span> orphans</p>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+<script>
+  // Re-read button — kicks off a fresh crawl for the current site.
+  document.getElementById('recrawl-btn')?.addEventListener('click', () => {
+    const siteId = new URLSearchParams(location.search).get('siteId');
+    if (!siteId) return;
+    window.rectoApi.recrawl(siteId).then((r) => {
+      location.href = '/app/crawl.html?siteId=' + encodeURIComponent(siteId) + '&crawlId=' + encodeURIComponent(r.crawlId);
+    }).catch(window.rectoErrors ? () => {} : () => {});
+  });
+
+  // GSC banner dismiss.
+  document.getElementById('dismiss-banner')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('gsc-banner')?.remove();
+  });
+</script>
+</body>
+</html>
