@@ -103,10 +103,13 @@ http://localhost:8765** together (Ctrl-C stops both).
 ```bash
 pnpm install
 cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars   # then fill in keys
-pnpm --filter @recto/api db:generate
-pnpm --filter @recto/api db:migrate:local
+pnpm --filter @recto/api db:migrate:local   # applies the committed migrations
 pnpm dev          # both servers; or pnpm dev:api / pnpm dev:web separately
 ```
+
+> Note: `db:generate` is a **maintainer-only** step — run it only when you change
+> `schema.ts`. The repo ships curated migrations, so a fresh clone just applies
+> them with `db:migrate:local`.
 </details>
 
 Health check:

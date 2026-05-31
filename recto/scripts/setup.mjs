@@ -57,8 +57,11 @@ async function main() {
   //    NOTE: first run downloads the toolchain — this is the slow step, not boot.
   run('pnpm install');
 
-  // 3. Create + migrate the local D1 database.
-  run('pnpm --filter @recto/api db:generate');
+  // 3. Create + migrate the local D1 database by applying the committed
+  //    migrations. Do NOT run db:generate here — the repo ships curated,
+  //    incremental migrations (0001+); regenerating from the schema would
+  //    fabricate a competing 0000_*.sql and collide ("table already exists").
+  //    db:generate is a maintainer step, only when you change schema.ts.
   run('pnpm --filter @recto/api db:migrate:local');
 
   // 4. Launch both servers. One Ctrl-C stops both.
