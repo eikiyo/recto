@@ -32,10 +32,27 @@ describe('WordPress insertLink — idempotency + safety', () => {
     expect(content).toContain('>related guide<');
   });
 
-  it('no-ops when the paragraph marker is missing from the content', () => {
+  it('falls back to first-paragraph insertion when the verbatim marker is missing', () => {
+    // Strategy #3 (see insertLink docs): WP normalises whitespace/entities, so an
+    // exact marker match often fails. Rather than no-op, insert a fresh paragraph
+    // after the first </p> — still "in the body, near the top".
     const html = '<p>Different content.</p>';
-    const { content, alreadyLinked } = insertLink(html, 'NOT-PRESENT', 'a', 'https://x/y');
+    const { content, alreadyLinked, via, markerMissing } = insertLink(html, 'NOT-PRESENT', 'a', 'https://x/y');
     expect(alreadyLinked).toBe(false);
+    expect(markerMissing).toBeFalsy();
+    expect(via).toBe('first-paragraph');
+    expect(content).toContain('<p>Different content.</p>'); // original preserved
+    expect(content).toContain('href="https://x/y"');
+    expect(content).toContain('data-recto-link="1"');
+  });
+
+  it('sets markerMissing when there is no paragraph break to land in', () => {
+    // Strategy #4: no </p>, no WP block, no double-newline → nowhere safe to
+    // insert, so flag markerMissing and leave content untouched (caller fails clean).
+    const html = 'Plain text with no paragraph structure at all';
+    const { content, alreadyLinked, markerMissing } = insertLink(html, 'NOT-PRESENT', 'a', 'https://x/y');
+    expect(alreadyLinked).toBe(false);
+    expect(markerMissing).toBe(true);
     expect(content).toBe(html);
   });
 
