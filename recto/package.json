@@ -7,6 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "dev": "trap 'kill 0' INT TERM; pnpm dev:api & pnpm dev:web & wait",
     "dev:api": "pnpm --filter @recto/api dev",
     "dev:web": "cd apps/web && python3 -m http.server 8765 --directory public",
     "build": "pnpm -r build",

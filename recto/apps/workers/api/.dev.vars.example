@@ -27,10 +27,6 @@ APPSUMO_WEBHOOK_SECRET="REPLACE_WITH_RANDOM_STRING"
 # Full walkthrough: ops/runbooks/gsc-setup.md
 GSC_CLIENT_ID="REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID"
 GSC_CLIENT_SECRET="REPLACE_WITH_GOOGLE_OAUTH_CLIENT_SECRET"
-# Google Cloud project id that owns the OAuth client (not a secret).
-GSC_PROJECT_ID="REPLACE_WITH_GOOGLE_CLOUD_PROJECT_ID"
-# OAuth redirect URI registered on the client — your API callback URL.
-GSC_REDIRECT_URI="http://localhost:8787/api/auth/gsc/callback"
 
 # Runtime mode + public origin. Override the wrangler.toml [vars] for local dev.
 RECTO_ENV="dev"

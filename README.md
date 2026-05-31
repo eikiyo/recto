@@ -97,9 +97,10 @@ cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars
 pnpm --filter @recto/api db:generate
 pnpm --filter @recto/api db:migrate:local
 
-# 4. Run it
-pnpm dev:api    # Worker API on http://localhost:8787
-pnpm dev:web    # static UI  on http://localhost:8765
+# 4. Run it — one command starts both the API and the static UI
+pnpm dev        # API on http://localhost:8787 + UI on http://localhost:8765
+                # (Ctrl-C stops both. Prefer separate terminals? Run
+                #  `pnpm dev:api` and `pnpm dev:web` individually.)
 ```
 
 Health check:

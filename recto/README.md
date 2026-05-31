@@ -47,8 +47,8 @@ pnpm install
 cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars   # then fill in keys
 pnpm --filter @recto/api db:generate
 pnpm --filter @recto/api db:migrate:local
-pnpm dev:api    # wrangler dev on :8787
-pnpm dev:web    # python http.server on :8765 serving the static UI
+pnpm dev        # starts BOTH: wrangler dev on :8787 + static UI on :8765
+                # (or run `pnpm dev:api` / `pnpm dev:web` separately)
 ```
 
 ## Deploy
