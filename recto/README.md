@@ -43,6 +43,12 @@ recto/
 ## Local dev
 
 ```bash
+pnpm setup      # one shot: install + create DB + open secrets file + run both servers
+```
+
+Or run the steps manually:
+
+```bash
 pnpm install
 cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars   # then fill in keys
 pnpm --filter @recto/api db:generate

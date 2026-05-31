@@ -84,24 +84,27 @@ Cloudflare-only. No servers, no containers.
 > `wrangler` is already a dev dependency — `pnpm install` brings it in, no global install needed.
 
 ```bash
-# 1. Clone and install
 git clone https://github.com/eikiyo/recto.git
 cd recto/recto
+pnpm setup
+```
+
+That single command does everything: installs the workspace, creates the local
+D1 database and runs migrations, **opens the secrets file for you to paste into**,
+then — once you press Enter — launches the **API on http://localhost:8787** and
+the **UI on http://localhost:8765** together (Ctrl-C stops both).
+
+<details>
+<summary>Prefer to run the steps yourself?</summary>
+
+```bash
 pnpm install
-
-# 2. Configure local secrets
-cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars
-#    → open .dev.vars and fill in your own keys (see comments in the file)
-
-# 3. Create the local D1 database + run migrations
+cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars   # then fill in keys
 pnpm --filter @recto/api db:generate
 pnpm --filter @recto/api db:migrate:local
-
-# 4. Run it — one command starts both the API and the static UI
-pnpm dev        # API on http://localhost:8787 + UI on http://localhost:8765
-                # (Ctrl-C stops both. Prefer separate terminals? Run
-                #  `pnpm dev:api` and `pnpm dev:web` individually.)
+pnpm dev          # both servers; or pnpm dev:api / pnpm dev:web separately
 ```
+</details>
 
 Health check:
 
