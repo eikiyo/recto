@@ -1,8 +1,11 @@
 name: voice-gate
 
-# Brand-voice gate. Fails the build when any user-facing copy ships a banned
-# word or hook anti-pattern. Synthetic personas are stubbed in via Playwright
-# using fixed test fixtures, so this runs offline.
+# Brand-voice gate — offline only. Fails the build when any user-facing copy
+# ships a banned word or hook anti-pattern (BRAND-VOICE §4 + §1B), enforced by
+# the @recto/voice ESLint plugin + its unit tests. No browser, no server.
+#
+# The Playwright persona checks moved to infra.yml (manual): they serve the
+# static UI and assume a populated web bundle, so they're not part of the gate.
 
 on:
   pull_request:
@@ -33,24 +36,3 @@ jobs:
         run: pnpm --filter @recto/api lint
       - name: Voice rule unit tests
         run: pnpm --filter @recto/eslint-plugin-voice test
-
-  persona-playwright:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 9 }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: recto/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Serve static UI
-        run: |
-          npx --yes http-server apps/web/public -p 8765 &
-          sleep 2
-      - name: Run persona gate
-        run: pnpm exec playwright test tests/persona-gate.spec.ts

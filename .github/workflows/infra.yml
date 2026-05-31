@@ -1,0 +1,115 @@
+name: infra-tests
+
+# Manual-only. These boot a live `wrangler dev` (local miniflare) and exercise
+# the API end-to-end: smoke, integration, fuzz, and (optionally) k6 load.
+# They are NOT part of the PR gate because they need a running worker + seeded
+# DB; run them on demand from the Actions tab.
+#
+# Note: the integration suite seeds its own local secrets via .dev.vars created
+# from .dev.vars.example. No production secrets are required for local miniflare.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_load:
+        description: 'Also run k6 load tests (slow, burns minutes)'
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    working-directory: recto
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Seed local dev secrets
+        run: cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars
+      - name: Integration smoke
+        run: bash scripts/smoke.sh
+      - name: Full integration assertions
+        run: bash scripts/integration.sh
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Seed local dev secrets
+        run: cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars
+      - name: Endpoint fuzz (no 5xx allowed)
+        run: bash scripts/fuzz.sh
+
+  persona-playwright:
+    # Static marketing personas. Serves the static UI from ../recto-ui (the real
+    # bundle) and asserts the locked hero copy + voice hold in rendered HTML.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Serve the static UI
+        run: |
+          npx --yes http-server ../recto-ui -p 8765 &
+          sleep 2
+      - name: Run persona gate
+        run: pnpm exec playwright test tests/persona-gate.spec.ts
+
+  load:
+    if: ${{ inputs.run_load }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: recto/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install k6 + jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq gnupg ca-certificates
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Seed local dev secrets
+        run: cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars
+      - name: Load — read-heavy (smoke profile)
+        run: TARGET_VUS=200 RAMP=20s HOLD=30s RAMP_DOWN=10s MODE=smoke bash scripts/load.sh read
+      - name: Load — webhook flood
+        run: bash scripts/load.sh webhook
+      - name: Load — write burst (realistic)
+        run: bash scripts/load.sh write

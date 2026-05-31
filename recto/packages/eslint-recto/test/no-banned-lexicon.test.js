@@ -77,4 +77,26 @@ describe('@recto/voice/no-banned-lexicon', () => {
     const msgs = lint(code);
     expect(msgs.some((m) => m.messageId === 'softBan')).toBe(true);
   });
+
+  // Technical magic-link contexts are code identifiers, not copy — must NOT flag.
+  it('does NOT flag "magic" in an auth route path', () => {
+    const code = `app.use('/api/auth/magic', handler);`;
+    expect(lint(code)).toHaveLength(0);
+  });
+
+  it('does NOT flag "magic" in a SQL table identifier', () => {
+    const code = `const q = 'INSERT INTO magic_tokens (hash, user_id) VALUES (?, ?)';`;
+    expect(lint(code)).toHaveLength(0);
+  });
+
+  it('does NOT flag "magic" in a KV key template', () => {
+    const code = 'const key = `rl:magic:${ip}-window`;';
+    expect(lint(code)).toHaveLength(0);
+  });
+
+  it('STILL flags "magic" used as marketing copy (not technical)', () => {
+    const code = `const x = "Our orphan finder feels like magic to every user";`;
+    const msgs = lint(code);
+    expect(msgs.some((m) => m.messageId === 'hardBan')).toBe(true);
+  });
 });
