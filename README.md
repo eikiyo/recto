@@ -13,6 +13,10 @@ Orphan-page rescue and internal-link insertion for serious WordPress and Webflow
 [![Built on Cloudflare Workers](https://img.shields.io/badge/built%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
+<br>
+
+<img src="docs/screenshots/landing-hero.png" alt="recto — recover the traffic your site forgot" width="860">
+
 </div>
 
 ---
@@ -77,6 +81,21 @@ Cloudflare-only. No servers, no containers.
 | JS-rendered pages | **Browser Rendering** |
 | Crawl progress (SSE) | **Durable Objects** |
 | Transactional email | Emailit → Resend → **MailChannels** fallback |
+
+## Screenshots
+
+The landing page:
+
+[<img src="docs/screenshots/landing-full.png" alt="recto landing page" width="720">](docs/screenshots/landing-full.png)
+
+The signed-in app — every link is suggested, you approve each one. The audit log
+shows the verify-state legend for every CMS push:
+
+[<img src="docs/screenshots/app-audit.png" alt="recto audit log with verify-state legend" width="720">](docs/screenshots/app-audit.png)
+
+<sub>The app screens (`docs/screenshots/app-*.png`) are the **static design shells**
+captured without a running backend — empty-state and loading copy is visible
+because no API is connected. Run `pnpm setup` to see them populated with live data.</sub>
 
 ## Quickstart
 
