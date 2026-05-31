@@ -80,7 +80,8 @@ Cloudflare-only. No servers, no containers.
 
 ## Quickstart
 
-> Prerequisites: **Node ≥ 20**, **pnpm 9**, a free **Cloudflare account**, and `wrangler` (`pnpm add -g wrangler`).
+> Prerequisites: **Node ≥ 20**, **pnpm 9**, and a free **Cloudflare account**.
+> `wrangler` is already a dev dependency — `pnpm install` brings it in, no global install needed.
 
 ```bash
 # 1. Clone and install
@@ -105,18 +106,19 @@ Health check:
 
 ```bash
 curl http://localhost:8787/api/health
-# → {"ok":true,...}
+# → {"status":"ok","checks":{"env":"dev","db":"bound","kv":"bound",...,"dbPing":"ok"},"ts":...}
 ```
 
 To deploy your own instance, create the Cloudflare resources and paste their IDs into `recto/apps/workers/api/wrangler.toml` (search for `REPLACE_WITH_`):
 
 ```bash
-wrangler d1 create recto
-wrangler kv namespace create KV
+cd recto
+pnpm exec wrangler d1 create recto
+pnpm exec wrangler kv namespace create KV
 # then set production secrets:
-wrangler secret put RECTO_KEK
-wrangler secret put MAGIC_LINK_SECRET
-# …etc (see .dev.vars.example for the full list)
+pnpm exec wrangler secret put RECTO_KEK
+pnpm exec wrangler secret put MAGIC_LINK_SECRET
+# …etc (see apps/workers/api/.dev.vars.example for the full list)
 ```
 
 ## Configuration

@@ -21,7 +21,8 @@ pnpm dev:api    # API on :8787
 pnpm dev:web    # static UI on :8765
 ```
 
-Requirements: **Node ≥ 20**, **pnpm 9**, and `wrangler`.
+Requirements: **Node ≥ 20** and **pnpm 9**. (`wrangler` is a dev dependency,
+installed by `pnpm install` — no global install needed.)
 
 ## Before you open a PR
 
