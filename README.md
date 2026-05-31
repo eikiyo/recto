@@ -8,6 +8,9 @@
 
 Orphan-page rescue and internal-link insertion for serious WordPress and Webflow sites. Built entirely on the Cloudflare developer platform.
 
+A **self-hosted, open-source alternative to Link Whisper and InLinks** — your data, your AI key, no per-seat SaaS bill.
+
+[![Latest release](https://img.shields.io/github/v/release/eikiyo/recto?sort=semver&color=blue)](https://github.com/eikiyo/recto/releases/latest)
 [![CI](https://github.com/eikiyo/recto/actions/workflows/ci.yml/badge.svg)](https://github.com/eikiyo/recto/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Built on Cloudflare Workers](https://img.shields.io/badge/built%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
