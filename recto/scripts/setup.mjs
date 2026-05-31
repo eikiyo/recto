@@ -5,7 +5,7 @@
 //          local DB, opens .dev.vars for optional real keys, then launches the
 //          full stack (API + UI) on localhost.
 // Functions: run(), gen(), seedEnv(), openInEditor(), main()
-// Calls: pnpm install / db:generate / db:migrate:local / dev
+// Calls: pnpm install / db:migrate:local / dev (db:generate is maintainer-only)
 // Imports: node:child_process, node:fs, node:os, node:crypto
 import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';

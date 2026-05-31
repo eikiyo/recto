@@ -43,7 +43,8 @@ recto/
 ## Local dev
 
 ```bash
-pnpm setup      # one shot: install + create DB + open secrets file + run both servers
+pnpm setup      # one shot: install + auto-gen dev secrets + open secrets file
+                #           + create+migrate the local DB + run both servers
 ```
 
 Or run the steps manually:
@@ -51,11 +52,12 @@ Or run the steps manually:
 ```bash
 pnpm install
 cp apps/workers/api/.dev.vars.example apps/workers/api/.dev.vars   # then fill in keys
-pnpm --filter @recto/api db:generate
-pnpm --filter @recto/api db:migrate:local
+pnpm --filter @recto/api db:migrate:local   # applies the committed migrations
 pnpm dev        # starts BOTH: wrangler dev on :8787 + static UI on :8765
                 # (or run `pnpm dev:api` / `pnpm dev:web` separately)
 ```
+
+> `db:generate` is maintainer-only — run it only after you change `schema.ts`.
 
 ## Deploy
 
