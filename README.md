@@ -102,9 +102,9 @@ shows the verify-state legend for every CMS push:
 
 [<img src="docs/screenshots/app-audit.png" alt="recto audit log with verify-state legend" width="720">](docs/screenshots/app-audit.png)
 
-<sub>The app screens (`docs/screenshots/app-*.png`) are the **static design shells**
-captured without a running backend — empty-state and loading copy is visible
-because no API is connected. Run `pnpm setup` to see them populated with live data.</sub>
+<sub>The app screens (`docs/screenshots/app-*.png`) are captured from the **real UI
+against a seeded local backend** — exactly what you get after `pnpm setup`. The
+example site, orphan rankings, and audit history are demo seed data.</sub>
 
 ## Quickstart
 

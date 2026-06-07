@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-07
+
+A documentation-only release that brings the README visuals current with the
+de-monetized UI shipped in 1.2.0. No code or behavior changes.
+
+### Fixed
+- Regenerated every app screenshot (`app-workbench`, `app-orphans`,
+  `app-insertion`, `app-audit`) and the demo GIF from the current UI driven
+  against a seeded local backend. The previous assets predated de-monetization
+  and still showed the removed billing navigation and credit/site-cap copy.
+- Corrected the Screenshots caption, which incorrectly described the app shots
+  as empty-state shells captured without a backend; they are seeded captures.
+
 ## [1.2.0] - 2026-06-07
 
 This release brings the public repository current with the product and ships it
