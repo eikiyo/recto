@@ -10,7 +10,6 @@ export const users = sqliteTable('users', {
   email: text('email').notNull().unique(),
   createdAt: integer('created_at').notNull(),
   lastLoginAt: integer('last_login_at'),
-  anchorCredits: integer('anchor_credits').notNull().default(0),
   byokOpenaiKey: blob('byok_openai_key', { mode: 'buffer' }),
   byokAnthropicKey: blob('byok_anthropic_key', { mode: 'buffer' }),
   digestOptIn: integer('digest_opt_in').notNull().default(1),
@@ -35,16 +34,6 @@ export const magicTokens = sqliteTable('magic_tokens', {
   userId: text('user_id').notNull().references(() => users.id),
   expiresAt: integer('expires_at').notNull(),
   usedAt: integer('used_at'),
-});
-
-export const licenses = sqliteTable('licenses', {
-  id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id),
-  appsumoCode: text('appsumo_code').notNull().unique(),
-  tier: integer('tier').notNull(),
-  redeemedAt: integer('redeemed_at').notNull(),
-  refundedAt: integer('refunded_at'),
-  stackedInto: text('stacked_into'),
 });
 
 export const sites = sqliteTable(
@@ -78,6 +67,7 @@ export const pages = sqliteTable(
     title: text('title'),
     h1: text('h1'),
     excerpt: text('excerpt'),
+    bodyText: text('body_text'),
     contentHash: text('content_hash').notNull(),
     depth: integer('depth'),
     lastModified: integer('last_modified'),

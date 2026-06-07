@@ -52,13 +52,21 @@ orphansRouter.get('/:id/orphans', async (c) => {
       g.avg_position                  AS avg_position
     FROM pages p
     LEFT JOIN (
-      SELECT page_id,
-             SUM(impressions) AS impressions_28d,
-             SUM(clicks)      AS clicks_28d,
-             AVG(position)    AS avg_position
-        FROM gsc_data
-       WHERE day >= ?
-       GROUP BY page_id
+      -- Scope the GSC aggregate to THIS site's pages. Without the
+      -- pages JOIN + site_id filter, SQLite materializes sums over EVERY
+      -- tenant's gsc_data for the day window on every orphans load, then
+      -- joins — O(all rows) instead of O(this site). Output is identical
+      -- (the outer query only keeps p.site_id = ? pages anyway); this merely
+      -- stops aggregating other sites' data. (Perf 2026-06-07.)
+      SELECT g.page_id,
+             SUM(g.impressions) AS impressions_28d,
+             SUM(g.clicks)      AS clicks_28d,
+             AVG(g.position)    AS avg_position
+        FROM gsc_data g
+        JOIN pages gp ON gp.id = g.page_id
+       WHERE gp.site_id = ?
+         AND g.day >= ?
+       GROUP BY g.page_id
     ) g ON g.page_id = p.id
     WHERE p.site_id = ?
       AND NOT EXISTS (SELECT 1 FROM edges e WHERE e.dst_page_id = p.id)
@@ -79,7 +87,7 @@ orphansRouter.get('/:id/orphans', async (c) => {
     LIMIT ?
   `
   )
-    .bind(cutoffDate, siteId, limit)
+    .bind(siteId, cutoffDate, siteId, limit)
     .all<{
       id: string;
       slug: string;

@@ -11,8 +11,13 @@ export async function gscDailyIncremental(env: Env): Promise<void> {
     'SELECT id FROM sites WHERE gsc_refresh_token IS NOT NULL AND gsc_property IS NOT NULL'
   ).all<{ id: string }>();
 
-  for (const s of sites.results) {
-    await env.Q_GSC_BACKFILL.send({ siteId: s.id, kind: 'day', day });
+  // Enqueue in sendBatch chunks of 100 rather than one await per site, so even
+  // thousands of GSC-connected sites fan out well within the cron budget — and
+  // no site is ever capped/stranded. (Hardened 2026-06-06.)
+  const rows = sites.results ?? [];
+  const messages = rows.map((s) => ({ body: { siteId: s.id, kind: 'day' as const, day } }));
+  for (let i = 0; i < messages.length; i += 100) {
+    await env.Q_GSC_BACKFILL.sendBatch(messages.slice(i, i + 100));
   }
-  console.log('gsc-daily-incremental', { sites: sites.results.length, day });
+  console.log('gsc-daily-incremental', { sites: rows.length, day });
 }

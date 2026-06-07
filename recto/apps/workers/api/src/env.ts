@@ -39,14 +39,13 @@ export type Env = {
   RECTO_ENV: 'dev' | 'preview' | 'prod';
   RECTO_PUBLIC_ORIGIN: string;
 
-  // Secrets (set via `wrangler secret put`)
-  RECTO_KEK: string;
-  APPSUMO_WEBHOOK_SECRET: string;
-  MAGIC_LINK_SECRET: string;
-  GSC_CLIENT_ID: string;
+  // Secrets (set via `wrangler secret put`, or a local `.dev.vars` in dev)
+  RECTO_KEK: string;          // AES-256-GCM key-encryption key for stored CMS/BYOK creds
+  MAGIC_LINK_SECRET: string;  // signs magic-link tokens
+  GSC_CLIENT_ID: string;      // Google Search Console OAuth (optional feature)
   GSC_CLIENT_SECRET: string;
-  // Email transports — checked in this order: Emailit (primary, rectoapp.com
-  // is SPF/DKIM-verified on Emailit), Resend (legacy), MailChannels (fallback).
+  // Email transports — checked in this order: Emailit (primary), Resend
+  // (fallback). Both optional in dev (magic-link URL is logged to the console).
   EMAILIT_API_KEY?: string;
   RESEND_API_KEY?: string;
 };

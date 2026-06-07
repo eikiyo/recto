@@ -8,11 +8,15 @@ import type { Env } from '../env';
 import { extract, contentHash } from '../lib/extract';
 import { normalizeUrl, pathOf, sameOrigin } from '../lib/url-norm';
 import { ulid } from '../lib/ids';
+import { retryOrDrop } from '../lib/queue';
+import { fetchWithTimeout } from '../lib/http';
 
 type CrawlMsg = { siteId: string; trigger: 'manual' | 'scheduled'; crawlId: string };
 
 const POLITENESS_MS = 1000; // 1 req/s per site default
 const PER_INVOCATION_BUDGET_MS = 22_000; // stay under queue-consumer timeout
+const MAX_TICK_DELIVERIES = 5; // bound retries on a wedged tick (DO/DB failures)
+const CRAWL_FETCH_TIMEOUT_MS = 12_000; // a slow page can't blow the per-invocation budget
 
 export async function handleCrawlBatch(
   batch: MessageBatch<CrawlMsg>,
@@ -26,8 +30,7 @@ export async function handleCrawlBatch(
       }
       msg.ack();
     } catch (e) {
-      console.error('crawl error', { siteId: msg.body.siteId, error: (e as Error).message });
-      msg.retry({ delaySeconds: 30 });
+      retryOrDrop(msg, 'crawl', { siteId: msg.body.siteId, crawlId: msg.body.crawlId, error: (e as Error).message }, MAX_TICK_DELIVERIES, 30);
     }
   }
 }
@@ -53,7 +56,14 @@ async function runCrawlTick(env: Env, job: CrawlMsg): Promise<boolean> {
   const processed: { url: string; ok: boolean; slug?: string }[] = [];
   const discovered: string[] = [];
 
-  for (const url of work.batch) {
+  // Track where we stop so the URLs we pulled but didn't reach can be returned
+  // to the DO queue. /work already SPLICED this batch out of the queue; with
+  // BATCH_SIZE=25 and POLITENESS_MS=1000 the 22s budget is hit mid-batch on
+  // nearly every tick, so without re-queuing the tail those pages were silently
+  // dropped from the crawl (the site under-covered). (Hardened 2026-06-07.)
+  let i = 0;
+  for (; i < work.batch.length; i++) {
+    const url = work.batch[i]!;
     if (Date.now() - started > PER_INVOCATION_BUDGET_MS) break;
     try {
       const result = await crawlOne(env, job.siteId, url);
@@ -69,12 +79,14 @@ async function runCrawlTick(env: Env, job: CrawlMsg): Promise<boolean> {
     // Politeness — yields between requests within the budget.
     await sleep(POLITENESS_MS);
   }
+  // URLs pulled from the DO but not reached this tick (budget hit at index i).
+  const unprocessed = work.batch.slice(i);
 
   // Persist progress; DO returns whether more work remains.
   const persistRes = await stub.fetch('https://do/persist', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ processed, discovered }),
+    body: JSON.stringify({ processed, discovered, unprocessed }),
   });
   const persisted = (await persistRes.json()) as { ok: boolean; remaining: number; complete: boolean };
 
@@ -127,13 +139,13 @@ async function crawlOne(
 ): Promise<{ slug: string; discovered: string[] }> {
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetchWithTimeout(url, {
       headers: {
         'User-Agent': 'recto-crawler/1.0 (+https://recto.so)',
         Accept: 'text/html,application/xhtml+xml',
       },
       cf: { cacheTtl: 0 } as RequestInitCfProperties,
-    });
+    }, CRAWL_FETCH_TIMEOUT_MS);
   } catch (e) {
     throw new Error(`fetch_failed:${(e as Error).message}`);
   }
@@ -162,12 +174,13 @@ async function crawlOne(
     pageId = existing.id;
     if (existing.content_hash !== hash) {
       await env.DB.prepare(
-        'UPDATE pages SET title = ?, h1 = ?, excerpt = ?, content_hash = ?, last_modified = ?, crawled_at = ? WHERE id = ?'
+        'UPDATE pages SET title = ?, h1 = ?, excerpt = ?, body_text = ?, content_hash = ?, last_modified = ?, crawled_at = ? WHERE id = ?'
       )
         .bind(
           ext.title,
           ext.h1,
           ext.excerpt,
+          ext.bodyText,
           hash,
           Number.isFinite(lastModifiedMs) ? lastModifiedMs : null,
           Date.now(),
@@ -175,12 +188,17 @@ async function crawlOne(
         )
         .run();
     } else {
-      await env.DB.prepare('UPDATE pages SET crawled_at = ? WHERE id = ?').bind(Date.now(), pageId).run();
+      // Content unchanged, but still backfill body_text (added 2026-06-06) for
+      // pages crawled before the column existed — otherwise the anchor selector
+      // never gets a full body for already-crawled sites.
+      await env.DB.prepare('UPDATE pages SET body_text = ?, crawled_at = ? WHERE id = ?')
+        .bind(ext.bodyText, Date.now(), pageId)
+        .run();
     }
   } else {
     pageId = ulid();
     await env.DB.prepare(
-      'INSERT INTO pages (id, site_id, slug, title, h1, excerpt, content_hash, last_modified, crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO pages (id, site_id, slug, title, h1, excerpt, body_text, content_hash, last_modified, crawled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
       .bind(
         pageId,
@@ -189,6 +207,7 @@ async function crawlOne(
         ext.title,
         ext.h1,
         ext.excerpt,
+        ext.bodyText,
         hash,
         Number.isFinite(lastModifiedMs) ? lastModifiedMs : null,
         Date.now()

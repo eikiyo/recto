@@ -50,12 +50,21 @@ export function sameOrigin(a: string, b: string): boolean {
 //
 // Returns true when the path looks like content; false when it should be
 // skipped at crawl ingest and at orphan/source candidate selection.
+// Matched on a SEGMENT boundary (a prefix matches the path itself or any
+// descendant path, never a longer word that merely shares the leading chars).
+// Without the boundary, `path.startsWith('/feed')` wrongly killed real posts at
+// `/feedback`, `/search` killed `/search-engine-tips`, `/cart` killed
+// `/cartoons`/`/cartography`, `/checkout` killed `/checkout-guide` — silently
+// dropping legit content from the crawl BFS and from orphan selection. Trailing
+// slashes are normalized off so the boundary check is uniform. (`/?` removed:
+// pathname never contains `?`; query-string routes are filtered via
+// SYSTEM_QUERY_KEYS below.) (Hardened 2026-06-07.)
 const SYSTEM_PATH_PREFIXES = [
-  '/wp-admin', '/wp-login.php', '/wp-content/', '/wp-includes/', '/wp-json',
+  '/wp-admin', '/wp-login.php', '/wp-content', '/wp-includes', '/wp-json',
   '/feed', '/comments/feed', '/xmlrpc.php', '/wp-cron.php', '/wp-sitemap',
-  '/author/', '/tag/', '/category/', '/page/',
-  '/?', '/search', '/cart', '/checkout', '/my-account',
-];
+  '/author', '/tag', '/category', '/page',
+  '/search', '/cart', '/checkout', '/my-account',
+].map((p) => (p.endsWith('/') ? p.slice(0, -1) : p));
 const SYSTEM_EXACT_PATHS = new Set([
   '/sample-page', '/hello-world', '/cart', '/checkout', '/my-account', '/wp-login.php',
 ]);
@@ -67,7 +76,7 @@ export function isContentPath(url: string): boolean {
     const path = u.pathname;
     if (SYSTEM_EXACT_PATHS.has(path)) return false;
     for (const pfx of SYSTEM_PATH_PREFIXES) {
-      if (path === pfx || path.startsWith(pfx)) return false;
+      if (path === pfx || path.startsWith(pfx + '/')) return false;
     }
     for (const k of SYSTEM_QUERY_KEYS) {
       if (u.searchParams.has(k)) return false;

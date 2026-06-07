@@ -18,10 +18,6 @@ RECTO_KEK="REPLACE_WITH_BASE64_32_BYTE_KEY"
 # Generate:  openssl rand -hex 32
 MAGIC_LINK_SECRET="REPLACE_WITH_RANDOM_STRING"
 
-# HMAC secret used to verify inbound AppSumo purchase webhooks.
-# Get it from your AppSumo partner dashboard (or any random string if unused).
-APPSUMO_WEBHOOK_SECRET="REPLACE_WITH_RANDOM_STRING"
-
 # Google Search Console OAuth client (project must enable the Search Console API).
 # Create at: https://console.cloud.google.com/apis/credentials
 # Full walkthrough: ops/runbooks/gsc-setup.md
@@ -41,3 +37,14 @@ EMAILIT_API_KEY=""
 
 # Resend API key (legacy fallback) — https://resend.com/api-keys
 RESEND_API_KEY=""
+
+# ── Live WordPress integration test (optional) ──
+# Only needed to run test/wp-live.integration.test.ts against a REAL WordPress
+# site. The whole suite skips itself unless WP_URL is set, so leave these blank
+# for normal dev. Use a throwaway post + a fresh Application Password.
+WP_URL=""                 # e.g. https://your-wp-site.com (no trailing slash)
+WP_USER=""                # WordPress username
+WP_APP_PWD=""             # Application Password (Users → Profile → Application Passwords)
+WP_SRC_ID=""              # numeric post ID to insert the test link into
+WP_TARGET_HREF=""         # absolute URL the inserted link should point at
+WP_MARKER=""              # a verbatim phrase in the post to wrap as the anchor

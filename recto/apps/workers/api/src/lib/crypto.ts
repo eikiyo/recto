@@ -1,7 +1,7 @@
 // Envelope encryption + HMAC signing. WebCrypto only — no npm crypto deps.
 // - encrypt/decrypt: AES-256-GCM with random 12-byte IV prepended to ciphertext.
-//   v1 uses a single master KEK directly. Per-user DEK envelope will land before
-//   AppSumo launch (TRD §10) without changing the call sites.
+//   v1 uses a single master KEK directly. A per-user DEK envelope can be layered
+//   in later without changing the call sites.
 // - sign/verify: HMAC-SHA-256 producing url-safe base64.
 // - hashToken: SHA-256(token) returning hex, used to store magic links and sessions.
 

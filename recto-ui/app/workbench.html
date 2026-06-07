@@ -34,6 +34,16 @@
     </form>
   </section>
 
+  <!-- Hero CTA — the single primary path into the guided spine. Surfaces only
+       when there is at least one orphan with a ready candidate to link. -->
+  <section id="qw-hero" data-testid="qw-hero" hidden
+           style="margin-bottom: var(--s-6); padding: var(--s-6); border: 1px solid var(--rule); border-left: 3px solid var(--indigo-dye); border-radius: var(--r-2); background: var(--ground-raised);">
+    <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-2);">Ready to link</p>
+    <h2 style="margin-bottom: var(--s-2);"><span data-testid="qw-hero-count">…</span> quick wins waiting.</h2>
+    <p class="muted" style="margin-bottom: var(--s-5); font-size: 15px;">Pages with no inbound links, each ready to connect using a phrase you already wrote. One at a time, one click each.</p>
+    <a class="btn btn--primary" data-testid="qw-hero-cta" href="/app/quick-wins.html">Fix quick wins →</a>
+  </section>
+
   <!-- "Since you were last here" — three numerals, scannable in <1s. -->
   <section style="margin-bottom: var(--s-6); padding-bottom: var(--s-6); border-bottom: 1px solid var(--rule);">
     <p class="mono" style="font-size: 12px; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-4);" data-testid="since-ts">Since you were last here · …</p>
@@ -66,10 +76,6 @@
       <ul data-testid="sites-list" style="list-style: none; padding: 0; margin: 0;">
         <li class="muted" data-empty>Loading your sites…</li>
       </ul>
-
-      <p style="margin-top: var(--s-5); font-size: 13px; color: var(--ink-soft);" data-testid="tier-prompt">
-        <a href="https://appsumo.com/products/recto" target="_blank" rel="noopener">Stack a code →</a> to lift your site cap.
-      </p>
 
       <p style="margin-top: var(--s-4);">
         <a class="btn" href="/app/sites-new.html">Connect another site</a>

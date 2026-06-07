@@ -21,6 +21,11 @@ export const ERROR_MESSAGES: Record<string, ErrorMessage> = {
     fix: 'Re-enter the application password in the site settings.',
     retryable: false,
   },
+  wp_no_edit_access: {
+    what: 'Those credentials authenticate but cannot edit posts.',
+    fix: 'Use an account with Editor or Administrator role, then connect again.',
+    retryable: false,
+  },
   wp_post_not_found: {
     what: 'WordPress could not find the post at that slug.',
     fix: 'Re-crawl the site to refresh the slug-to-post mapping.',
@@ -41,6 +46,11 @@ export const ERROR_MESSAGES: Record<string, ErrorMessage> = {
     fix: 'Pick a different source page or candidate.',
     retryable: false,
   },
+  wp_anchor_not_found: {
+    what: 'The anchor phrase is no longer in the post, word for word.',
+    fix: 'Pick a phrase that exists in the post — re-crawl if it was edited recently.',
+    retryable: false,
+  },
   wp_post_failed: {
     what: 'WordPress accepted the request but the update did not stick.',
     fix: 'Retry. If it fails a second time, check the post for a content lock.',
@@ -49,6 +59,11 @@ export const ERROR_MESSAGES: Record<string, ErrorMessage> = {
   wp_network: {
     what: 'Network call to WordPress did not complete.',
     fix: 'Retry in a minute.',
+    retryable: true,
+  },
+  wp_invalid_response: {
+    what: 'WordPress returned a response we could not read as JSON.',
+    fix: 'A caching or security plugin may be interfering — retry, then check /wp-json returns JSON.',
     retryable: true,
   },
   wp_unknown: {
@@ -129,14 +144,37 @@ export const ERROR_MESSAGES: Record<string, ErrorMessage> = {
   },
   user_gone: {
     what: 'Your account is no longer on file.',
-    fix: 'Sign in with the email tied to your AppSumo redemption.',
+    fix: 'Sign in again with your email to create a fresh session.',
     retryable: false,
   },
 
-  // BYOK
+  // Site connect
+  wp_credentials_required: {
+    what: 'WordPress needs a username and an application password to connect.',
+    fix: 'Add both, then connect again.',
+    retryable: true,
+  },
+  webflow_key_required: {
+    what: 'Webflow needs an API key to connect.',
+    fix: 'Paste your Webflow API key, then connect again.',
+    retryable: true,
+  },
+  already_connected: {
+    what: 'This site is already connected to your account.',
+    fix: 'Open it from your sites list instead of connecting again.',
+    retryable: false,
+  },
+
+  anchor_required: {
+    what: 'This candidate has no anchor phrase selected yet.',
+    fix: 'Hand-pick a phrase from the source post, then push.',
+    retryable: false,
+  },
+
+  // BYOK / AI provider
   byok_required: {
-    what: 'Your anchor-credit pool is empty.',
-    fix: 'Add an OpenAI or Anthropic key, or wait for next month.',
+    what: 'No AI provider is available to generate this anchor.',
+    fix: 'Enable Workers AI on your Cloudflare account, or add an OpenAI/Anthropic key in Settings.',
     retryable: false,
   },
 };

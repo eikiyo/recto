@@ -17,8 +17,8 @@
               '<span class="sr-only">Active site</span>' +
               '<select data-testid="site-switch" aria-label="Switch site"></select>' +
             '</label>' +
-            '<a href="/app/workbench.html" data-nav="workbench">Workbench</a>' +
-            '<a href="/app/orphans.html" data-nav="orphans">Orphans</a>' +
+            '<a href="/app/workbench.html" data-nav="workbench">Home</a>' +
+            '<a href="/app/quick-wins.html" data-nav="quick-wins">Quick wins</a>' +
             '<a href="/app/audit.html" data-nav="audit">Audit</a>' +
             '<a href="/app/settings-byok.html" data-nav="settings">Settings</a>' +
             '<a href="#" data-nav-signout data-testid="nav-signout">Sign out</a>' +
@@ -89,12 +89,18 @@
   function toast(message, undoFn) {
     var host = document.querySelector('.toast-host');
     if (!host) { host = el('<div class="toast-host" role="status" aria-live="polite"></div>'); document.body.appendChild(host); }
+    // Build the structure WITHOUT interpolating the message — el() parses its
+    // argument as HTML (template.innerHTML), so concatenating `message` made the
+    // toast an HTML-injection sink (e.g. toast('New anchor: '+anchorText), where
+    // anchorText is verbatim crawled page content). The message is set via
+    // textContent below so it can never be parsed as markup. (XSS hardened 2026-06-07.)
     var t = el(
       '<div class="toast" role="status">' +
-        '<span data-testid="toast-msg">' + message + '</span>' +
+        '<span data-testid="toast-msg"></span>' +
         (undoFn ? '<button class="toast__undo" data-testid="toast-undo">Undo</button>' : '') +
       '</div>'
     );
+    t.querySelector('[data-testid="toast-msg"]').textContent = String(message == null ? '' : message);
     host.appendChild(t);
     if (undoFn) {
       t.querySelector('.toast__undo').addEventListener('click', function () { undoFn(); t.remove(); });

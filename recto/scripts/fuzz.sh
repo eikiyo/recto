@@ -60,10 +60,9 @@ for i in $(seq 1 40); do
   if [ "$i" = 40 ]; then tail -40 "$LOG"; exit 1; fi
 done
 
-step "Seed user + license"
+step "Seed user"
 ( cd "$API" && pnpm wrangler d1 execute recto --local --persist-to .miniflare --command \
-  "INSERT INTO users (id, email, created_at, digest_opt_in, anchor_credits) VALUES ('fuzz-user','fuzz@example.com', strftime('%s','now')*1000, 1, 100); \
-   INSERT INTO licenses (id, user_id, appsumo_code, tier, redeemed_at) VALUES ('fuzz-lic','fuzz-user','FUZZ-CODE',3, strftime('%s','now')*1000);" >/dev/null 2>&1 )
+  "INSERT INTO users (id, email, created_at, digest_opt_in) VALUES ('fuzz-user','fuzz@example.com', strftime('%s','now')*1000, 1);" >/dev/null 2>&1 )
 
 TOK=$(curl -fsS -X POST "$BASE/api/auth/magic" -H 'Content-Type: application/json' \
   -d '{"email":"fuzz@example.com"}' | jq -r '.devToken')
@@ -116,13 +115,6 @@ assert_not_5xx "push id with quotes" $(status -b "$COOKIES" -X POST "$BASE/api/p
 assert_not_5xx "retry non-existent" $(status -b "$COOKIES" -X POST "$BASE/api/pushes/12345/retry")
 assert_not_5xx "list pushes bad status" $(status -b "$COOKIES" "$BASE/api/pushes?status=blah")
 assert_not_5xx "list pushes bad limit" $(status -b "$COOKIES" "$BASE/api/pushes?limit=NaN")
-
-# ── APPSUMO WEBHOOK ──────────────────────────────────────────────────
-step "appsumo: bad inputs"
-assert_not_5xx "webhook empty body" $(status -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'x-appsumo-signature: x')
-assert_not_5xx "webhook bad signature header" $(status -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'Content-Type: application/json' -H 'x-appsumo-signature: '$'\x00\x01' -d '{}')
-assert_not_5xx "webhook unknown event" $(status -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'Content-Type: application/json' -d '{"event":"explode","event_id":"1","email":"x@y","appsumo_code":"X","tier":1}')
-assert_not_5xx "webhook tier 99" $(status -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'Content-Type: application/json' -H 'x-appsumo-signature: y' -d '{"event":"activate","event_id":"99","email":"a@b","appsumo_code":"Z","tier":99}')
 
 # ── WORKBENCH ────────────────────────────────────────────────────────
 step "workbench: bad inputs"

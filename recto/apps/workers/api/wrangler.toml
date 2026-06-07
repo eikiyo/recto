@@ -115,18 +115,15 @@ binding = "BROWSER"
 [triggers]
 crons = [
   "0 6 * * *",       # GSC daily incremental @ 06:00 UTC
-  "0 * * * *",       # hourly: BYOK-threshold sweep + tz fan-out
-  "0 0 * * *",       # live-page reverify daily @ 00:00 UTC
-  "0 0 1 * *",       # 1st of month, 00:00 UTC — anchor credit reset
-  "0 1 1 * *"        # 1st of month, 01:00 UTC — audit + self-heal any reset drift
+  "0 * * * *",       # hourly: weekly-digest fan-out
+  "0 0 * * *"        # live-page reverify daily @ 00:00 UTC
 ]
 
-# Secrets (set via `wrangler secret put`; see .dev.vars.example for the full list):
-#   RECTO_KEK              — 256-bit envelope KEK
-#   APPSUMO_WEBHOOK_SECRET — HMAC secret for /api/webhooks/appsumo
-#   MAGIC_LINK_SECRET      — HMAC for magic-link tokens
-#   GSC_CLIENT_ID          — Google OAuth client
-#   GSC_CLIENT_SECRET      — Google OAuth secret
+# Secrets (set via `wrangler secret put`, or a local .dev.vars in dev):
+#   RECTO_KEK         — 256-bit envelope KEK for stored CMS/BYOK credentials
+#   MAGIC_LINK_SECRET — HMAC for magic-link tokens
+#   GSC_CLIENT_ID     — Google Search Console OAuth client (optional feature)
+#   GSC_CLIENT_SECRET — Google Search Console OAuth secret (optional feature)
 
 [observability]
 enabled = true

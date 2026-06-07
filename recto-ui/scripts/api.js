@@ -70,18 +70,27 @@
     listSites: function () { return request('GET', '/api/sites'); },
     connectSite: function (payload) { return request('POST', '/api/sites', payload); },
     deleteSite: function (id) { return request('DELETE', '/api/sites/' + encodeURIComponent(id)); },
+    updateCreds: function (id, payload) { return request('PUT', '/api/sites/' + encodeURIComponent(id) + '/credentials', payload); },
     recrawl: function (id) { return request('POST', '/api/sites/' + encodeURIComponent(id) + '/recrawl'); },
     crawlState: function (siteId, crawlId) {
       return request('GET', '/api/sites/' + encodeURIComponent(siteId) + '/crawl/' + encodeURIComponent(crawlId) + '/state');
     },
-    crawlSSE: function (siteId, crawlId, onEvent) {
+    crawlSSE: function (siteId, crawlId, onEvent, onError) {
       var es = new EventSource(
         url('/api/sites/' + encodeURIComponent(siteId) + '/crawl/' + encodeURIComponent(crawlId) + '/events'),
         { withCredentials: true }
       );
-      es.onmessage = function (ev) {
+      function handle(ev) {
         try { onEvent(JSON.parse(ev.data)); } catch (e) { /* ignore */ }
-      };
+      }
+      // The DO emits NAMED events (progress, complete) — onmessage only catches
+      // unnamed ones, so listen for both names too or the UI never updates.
+      es.onmessage = handle;
+      es.addEventListener('progress', handle);
+      es.addEventListener('complete', handle);
+      // EventSource NEVER throws synchronously and auto-reconnects forever on a
+      // dead endpoint — without onerror a broken stream looks like a frozen page.
+      es.onerror = function () { if (onError) onError(); };
       return es;
     },
 
@@ -103,6 +112,11 @@
     },
     setAnchor: function (candidateId, anchorText) {
       return request('PUT', '/api/candidates/' + encodeURIComponent(candidateId) + '/anchor', { anchorText: anchorText });
+    },
+    // Source prose for hand-pick: the post's sentences so the user can select
+    // their own existing phrase to wrap. PUT /anchor validates the substring.
+    getSource: function (candidateId) {
+      return request('GET', '/api/candidates/' + encodeURIComponent(candidateId) + '/source');
     },
 
     // Pushes (audit log)

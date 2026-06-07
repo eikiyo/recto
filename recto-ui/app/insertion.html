@@ -54,17 +54,5 @@
 <script src="/scripts/app-shell.js"></script>
 <script src="/scripts/api.js"></script>
 <script src="/scripts/pages.js"></script>
-<script>
-  const params = new URLSearchParams(location.search);
-  const siteId = params.get('siteId');
-  const backLink = document.getElementById('back-link');
-  if (backLink && siteId) backLink.href = '/app/orphans.html?siteId=' + encodeURIComponent(siteId);
-
-  document.getElementById('next-orphan').addEventListener('click', e => {
-    e.preventDefault();
-    if (siteId) location.href = '/app/orphans.html?siteId=' + encodeURIComponent(siteId);
-    else location.href = '/app/orphans.html';
-  });
-</script>
 </body>
 </html>

@@ -28,36 +28,42 @@ workbenchRouter.get('/since', async (c) => {
   const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const since = prev ? prev.expires_at - SESSION_TTL_MS : Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-  // New pages: pages.crawled_at >= since across the user's sites.
-  const newPages = await c.env.DB.prepare(
-    `SELECT COUNT(*) AS n
-       FROM pages p JOIN sites s ON s.id = p.site_id
-      WHERE s.user_id = ? AND p.crawled_at >= ?`
-  )
-    .bind(userId, since)
-    .first<{ n: number }>();
+  // The three counts are independent reads — fire them concurrently rather than
+  // serially awaiting each. On D1 each .first() is its own round-trip; serial
+  // made /since a 3×-RTT page-load blocker on the workbench top block. Promise.all
+  // collapses it to one RTT-bound wait. (Hardened 2026-06-07 — lightning response.)
+  const [newPages, newOrphans, newCandidates] = await Promise.all([
+    // New pages: pages.crawled_at >= since across the user's sites.
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS n
+         FROM pages p JOIN sites s ON s.id = p.site_id
+        WHERE s.user_id = ? AND p.crawled_at >= ?`
+    )
+      .bind(userId, since)
+      .first<{ n: number }>(),
 
-  // New orphans: pages crawled since `since` that have zero rows in edges where dst_page_id = page.id.
-  const newOrphans = await c.env.DB.prepare(
-    `SELECT COUNT(*) AS n
-       FROM pages p
-       JOIN sites s ON s.id = p.site_id
-      WHERE s.user_id = ? AND p.crawled_at >= ?
-        AND NOT EXISTS (SELECT 1 FROM edges e WHERE e.dst_page_id = p.id)`
-  )
-    .bind(userId, since)
-    .first<{ n: number }>();
+    // New orphans: pages crawled since `since` that have zero rows in edges where dst_page_id = page.id.
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS n
+         FROM pages p
+         JOIN sites s ON s.id = p.site_id
+        WHERE s.user_id = ? AND p.crawled_at >= ?
+          AND NOT EXISTS (SELECT 1 FROM edges e WHERE e.dst_page_id = p.id)`
+    )
+      .bind(userId, since)
+      .first<{ n: number }>(),
 
-  // New anchor candidates generated since `since`.
-  const newCandidates = await c.env.DB.prepare(
-    `SELECT COUNT(*) AS n
-       FROM candidates c
-       JOIN pages p ON p.id = c.orphan_page_id
-       JOIN sites s ON s.id = p.site_id
-      WHERE s.user_id = ? AND c.generated_at >= ?`
-  )
-    .bind(userId, since)
-    .first<{ n: number }>();
+    // New anchor candidates generated since `since`.
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS n
+         FROM candidates c
+         JOIN pages p ON p.id = c.orphan_page_id
+         JOIN sites s ON s.id = p.site_id
+        WHERE s.user_id = ? AND c.generated_at >= ?`
+    )
+      .bind(userId, since)
+      .first<{ n: number }>(),
+  ]);
 
   return c.json({
     since,

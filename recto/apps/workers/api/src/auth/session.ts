@@ -34,8 +34,29 @@ export async function createSession(
   // RECTO_PUBLIC_ORIGIN tells us where the SPA lives; if its eTLD+1 differs
   // from the API host we serve None; otherwise Lax keeps CSRF surface tight.
   const sameSite = sessionSameSite(env);
-  const cookie = `${SESSION_COOKIE}=${id}.${sig}; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
+  const cookie = `${SESSION_COOKIE}=${id}.${sig}; Path=/; HttpOnly; Secure; SameSite=${sameSite}${cookieDomain(env)}; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
   return { id, cookie, expiresAt };
+}
+
+// Cookie Domain. In prod the API (api.rectoapp.com) sets the session cookie but
+// the SPA lives on rectoapp.com — without an explicit parent Domain the cookie
+// is HOST-ONLY (api.rectoapp.com) and does not travel to the apex/www, so a user
+// who returns to rectoapp.com (e.g. from an email link) gets signed out. Scoping
+// to `.rectoapp.com` shares one session across apex + www + api. (Caught
+// 2026-06-06.) For pages.dev/workers.dev/dev the SPA and API are different
+// eTLD+1, so no shared Domain is possible — stay host-only there.
+function cookieDomain(env: Env): string {
+  try {
+    const origin = env.RECTO_PUBLIC_ORIGIN || '';
+    if (!origin || env.RECTO_ENV === 'dev') return '';
+    const host = new URL(origin).hostname;
+    if (host.endsWith('.pages.dev') || host.endsWith('.workers.dev')) return '';
+    if (host === 'localhost' || /^\d/.test(host)) return '';
+    const parent = host.replace(/^www\./, '');
+    return `; Domain=.${parent}`;
+  } catch {
+    return '';
+  }
 }
 
 export async function loadSession(
@@ -71,7 +92,10 @@ export async function destroySession(env: Env, sessionId: string): Promise<void>
 
 export function clearedCookie(env?: Env): string {
   const sameSite = env ? sessionSameSite(env) : 'Lax';
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=0`;
+  // Must mirror the Domain used when setting the cookie, or the browser keeps
+  // the parent-domain cookie and logout doesn't actually sign the user out.
+  const domain = env ? cookieDomain(env) : '';
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=${sameSite}${domain}; Max-Age=0`;
 }
 
 function sessionSameSite(env: Env): 'None' | 'Lax' {
@@ -95,7 +119,16 @@ function sessionSameSite(env: Env): 'None' | 'Lax' {
 function parseCookie(header: string, name: string): string | null {
   const parts = header.split(';');
   for (const part of parts) {
-    const [k, v] = part.trim().split('=');
+    const trimmed = part.trim();
+    // Split on the FIRST '=' only. `split('=')` + destructure dropped everything
+    // after the first '=' in the VALUE — fine for today's tokens (b64url, no
+    // padding) but a silent landmine: switch the session/sig encoding to anything
+    // containing '=' (standard base64 padding, a JWT) and every login breaks with
+    // no error. A cookie value legitimately may contain '='. (Hardened 2026-06-07.)
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const k = trimmed.slice(0, eq);
+    const v = trimmed.slice(eq + 1);
     if (k === name && v) return v;
   }
   return null;

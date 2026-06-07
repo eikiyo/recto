@@ -64,21 +64,5 @@
 <script src="/scripts/app-shell.js"></script>
 <script src="/scripts/api.js"></script>
 <script src="/scripts/pages.js"></script>
-<script>
-  // Re-read button — kicks off a fresh crawl for the current site.
-  document.getElementById('recrawl-btn')?.addEventListener('click', () => {
-    const siteId = new URLSearchParams(location.search).get('siteId');
-    if (!siteId) return;
-    window.rectoApi.recrawl(siteId).then((r) => {
-      location.href = '/app/crawl.html?siteId=' + encodeURIComponent(siteId) + '&crawlId=' + encodeURIComponent(r.crawlId);
-    }).catch(window.rectoErrors ? () => {} : () => {});
-  });
-
-  // GSC banner dismiss.
-  document.getElementById('dismiss-banner')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('gsc-banner')?.remove();
-  });
-</script>
 </body>
 </html>

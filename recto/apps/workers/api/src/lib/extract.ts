@@ -11,11 +11,16 @@
 import { normalizeUrl, sameOrigin } from './url-norm';
 
 const MAX_TEXT = 8000; // ~1000 words ceiling per FR-CRAWL-03
+// Larger ceiling for the full body copy used by anchor-phrase selection. The
+// anchor we insert must be a phrase that already exists in the post, so the
+// selector needs more than the excerpt for long articles. ~5000 words.
+const MAX_BODY = 40000;
 
 export type Extracted = {
   title: string;
   h1: string;
   excerpt: string; // first MAX_TEXT chars of visible body text
+  bodyText: string; // larger cleaned body copy for anchor-phrase selection
   internalAnchors: { href: string; text: string }[];
 };
 
@@ -34,6 +39,7 @@ export async function extract(html: Response, pageUrl: string): Promise<Extracte
   let inStyle = false;
   let inNav = false;
   let inFooter = false;
+  let inHeader = 0; // depth counter — site header + entry-header can nest
   let inAside = 0; // depth counter — asides can nest
   let inAnchor: { href: string; text: string } | null = null;
 
@@ -63,6 +69,20 @@ export async function extract(html: Response, pageUrl: string): Promise<Extracte
         inFooter = true;
         el.onEndTag(() => {
           inFooter = false;
+        });
+      },
+    })
+    // Page + post header chrome: the site name/logo, the post title, and the
+    // byline ("Written by … in Uncategorized") live in <header>, .site-header,
+    // and .entry-header. Without skipping them the site name and the post's own
+    // title leak into body_text — and the anchor selector then picks them, so
+    // Recto links a page "from its own title" or "from the site name". The
+    // anchor must come from real body prose, never chrome. (2026-06-06.)
+    .on('header, .site-header, .entry-header, .page-header, [role="banner"]', {
+      element(el) {
+        inHeader += 1;
+        el.onEndTag(() => {
+          inHeader = Math.max(0, inHeader - 1);
         });
       },
     })
@@ -105,7 +125,7 @@ export async function extract(html: Response, pageUrl: string): Promise<Extracte
         // Reject anchors inside nav/footer/aside/widget chrome — those are
         // template links (recent posts, breadcrumbs, archives), not
         // content-to-content edges. Counting them breaks orphan detection.
-        if (inNav || inFooter || inAside > 0) return;
+        if (inNav || inFooter || inHeader > 0 || inAside > 0) return;
         const href = el.getAttribute('href') ?? '';
         const normalized = normalizeUrl(href, pageUrl);
         if (!normalized) return;
@@ -124,8 +144,8 @@ export async function extract(html: Response, pageUrl: string): Promise<Extracte
     })
     .on('p, li, span, div', {
       text(t) {
-        if (inScript || inStyle || inNav || inFooter || inAside > 0) return;
-        if (textLen >= MAX_TEXT) return;
+        if (inScript || inStyle || inNav || inFooter || inHeader > 0 || inAside > 0) return;
+        if (textLen >= MAX_BODY) return;
         const chunk = t.text;
         if (!chunk.trim()) return;
         textChunks.push(chunk);
@@ -136,11 +156,13 @@ export async function extract(html: Response, pageUrl: string): Promise<Extracte
   // Drain the rewriter; throw the body away (we just want the side-effects).
   await rewriter.transform(html).text();
 
-  const excerpt = collapseWhitespace(textChunks.join(' ')).slice(0, MAX_TEXT);
+  const bodyText = collapseWhitespace(textChunks.join(' ')).slice(0, MAX_BODY);
+  const excerpt = bodyText.slice(0, MAX_TEXT);
   return {
     title: collapseWhitespace(title),
     h1: collapseWhitespace(h1),
     excerpt,
+    bodyText,
     internalAnchors: dedupeAnchors(anchorsCollecting),
   };
 }

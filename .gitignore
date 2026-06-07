@@ -33,6 +33,10 @@ playwright-report/
 **/tests/test-results/
 blob-report/
 .nyc_output/
+# Ad-hoc screenshots captured by the live-* smoke tests (not curated docs;
+# curated screenshots live in docs/screenshots/).
+live-shots/
+**/live-shots/
 
 # ─── Logs ───
 *.log
@@ -45,3 +49,16 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# ─── Internal (never published) ───
+.claude/
+Support Docs/
+# The authoritative CI lives in the repo-root .github/. The backend's own
+# .github/ is a source-tree leftover (GitHub only runs root workflows) and
+# referenced internal build paths — never publish it.
+recto/.github/
+# Personal local-dev end-to-end spec — machine-specific + coupled to internal
+# tooling; not part of the published persona suite (01–08). Kept out of publish.
+recto-ui/tests/specs/99-eikiyo-full-journey.spec.ts
+# Load test for the removed AppSumo webhook endpoint — no longer applicable.
+recto/load/k6-webhook-flood.js

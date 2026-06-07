@@ -18,32 +18,17 @@ const SOFT = makeSoftBanRegex();
 // imports). Skip to keep noise out.
 const MIN_COPY_LENGTH = 12;
 
-// A hard-ban word is a CODE identifier, not marketing copy, when it sits next to
-// a path/identifier/key separator — e.g. magic-link auth: "/api/auth/magic"
-// (route), "magic_tokens" (SQL table), "rl:magic:${ip}" (KV key). BRAND-VOICE §4
-// governs user-facing copy, not technical strings, so these are allowlisted.
-const TECH_ADJACENT = /[/_:]/;
-function isTechnicalUse(text, idx, word) {
-  const before = idx > 0 ? text[idx - 1] : '';
-  const after = text[idx + word.length] || '';
-  return TECH_ADJACENT.test(before) || TECH_ADJACENT.test(after);
-}
-
 function checkText(context, node, text) {
   if (!text || typeof text !== 'string') return;
   if (text.length < MIN_COPY_LENGTH) return;
 
-  // Report the first hard-ban hit that is NOT a technical identifier.
-  const hardRe = new RegExp(HARD.source, 'gi');
-  let m;
-  while ((m = hardRe.exec(text)) !== null) {
-    if (isTechnicalUse(text, m.index, m[0])) continue;
+  const hard = HARD.exec(text);
+  if (hard) {
     context.report({
       node,
       messageId: 'hardBan',
-      data: { word: m[0], snippet: snippet(text, m.index) },
+      data: { word: hard[0], snippet: snippet(text, hard.index) },
     });
-    break;
   }
 
   const soft = SOFT.exec(text);

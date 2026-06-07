@@ -20,7 +20,7 @@ const PERSONAS = [
   },
   {
     name: 'Daniel',
-    must: [], // Daniel's hook lives on the AppSumo listing; landing is Mira-led
+    must: [], // Daniel's hook lives off-site; the landing is Mira-led
   },
   {
     name: 'Sarah',

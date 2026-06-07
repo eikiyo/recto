@@ -14,26 +14,24 @@
 <main class="container container--prose" style="padding: var(--s-6) var(--s-5);">
 
   <h1 style="margin-bottom: var(--s-2);">Settings</h1>
-  <p class="muted" style="margin-bottom: var(--s-6); font-size: 14px;">License, BYOK keys, and integrations.</p>
+  <p class="muted" style="margin-bottom: var(--s-6); font-size: 14px;">Account, AI keys, and integrations.</p>
 
   <section style="margin-bottom: var(--s-7);">
-    <h3 style="margin-bottom: var(--s-3);">License</h3>
+    <h3 style="margin-bottom: var(--s-3);">Account</h3>
     <div class="card">
       <table class="table tnum" style="border: none;">
         <tbody>
-          <tr><th>Account</th><td class="mono" data-testid="license-email">…</td></tr>
-          <tr><th>Codes</th><td class="mono" data-testid="license-tier">…</td></tr>
-          <tr><th>Sites</th><td class="mono" data-testid="license-sites">…</td></tr>
-          <tr><th>Anchor credits</th><td class="mono" data-testid="license-credits">…</td></tr>
+          <tr><th>Account</th><td class="mono" data-testid="account-email">…</td></tr>
+          <tr><th>Sites</th><td class="mono" data-testid="account-sites">…</td></tr>
         </tbody>
       </table>
-      <p class="muted" style="font-size: 13px; margin-top: var(--s-3);">1 code = 1 site + 100 anchor credits per month. Credits don't carry over — every reset is a clean 100 per code. Stack codes: <a href="https://appsumo.com/products/recto" target="_blank" rel="noopener">appsumo.com/products/recto</a></p>
+      <p class="muted" style="font-size: 13px; margin-top: var(--s-3);">Self-hosted: unlimited sites and anchors. recto generates anchors with Workers AI on your Cloudflare account, or with your own OpenAI/Anthropic key below.</p>
     </div>
   </section>
 
   <section style="margin-bottom: var(--s-7);">
     <h3 style="margin-bottom: var(--s-3);">Bring your own key (BYOK)</h3>
-    <p class="muted" style="font-size: 14px; margin-bottom: var(--s-4);" data-testid="byok-cost-note">After your included anchor credits, recto uses the OpenAI or Anthropic key you provide. We do not bill for these calls. Estimated cost: ~$0.06 per 1,000 anchors.</p>
+    <p class="muted" style="font-size: 14px; margin-bottom: var(--s-4);" data-testid="byok-cost-note">By default recto uses Workers AI on your own Cloudflare account. Optionally provide an OpenAI or Anthropic key to use those models instead — calls bill to your provider account, never to recto.</p>
 
     <form id="byok-form" autocomplete="off">
       <div class="field" style="margin-bottom: var(--s-4);">

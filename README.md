@@ -85,7 +85,7 @@ Cloudflare-only. No servers, no containers.
 | Sessions, rate limits, ETag cache | **KV** |
 | Cold blobs (audit archive) | **R2** |
 | Async jobs (crawl / embed / push / verify / email) | **Queues** |
-| Scheduled work (digests, credit reset) | **Cron Triggers** |
+| Scheduled work (GSC sync, weekly digest, link reverify) | **Cron Triggers** |
 | Embedding + anchor-generation floor | **Workers AI** (BGE, Llama 3.1 8B) |
 | JS-rendered pages | **Browser Rendering** |
 | Crawl progress (SSE) | **Durable Objects** |

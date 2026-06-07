@@ -20,7 +20,6 @@ DROP INDEX IF EXISTS sites_user_url;
 DROP INDEX IF EXISTS sites_user;
 DROP TABLE IF EXISTS sites;
 
-DROP TABLE IF EXISTS licenses;
 DROP TABLE IF EXISTS magic_tokens;
 
 DROP INDEX IF EXISTS sessions_user;

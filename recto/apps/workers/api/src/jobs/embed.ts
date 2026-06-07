@@ -5,11 +5,13 @@
 // stored metadata — keeps AI invocation cost down on mostly-static sites.
 
 import type { Env } from '../env';
+import { retryOrDrop } from '../lib/queue';
 
 type EmbedMsg = { siteId: string; pageId: string };
 
 const MODEL = '@cf/baai/bge-base-en-v1.5'; // 768-dim
 const EMBED_INPUT_CAP = 2_000; // BGE accepts ~512 tokens; cap chars to stay well inside
+const MAX_EMBED_DELIVERIES = 5; // bound retries when AI/Vectorize is persistently unavailable
 
 export async function handleEmbedBatch(
   batch: MessageBatch<EmbedMsg>,
@@ -20,8 +22,7 @@ export async function handleEmbedBatch(
       await embedOne(env, msg.body);
       msg.ack();
     } catch (e) {
-      console.error('embed error', { pageId: msg.body.pageId, error: (e as Error).message });
-      msg.retry({ delaySeconds: 30 });
+      retryOrDrop(msg, 'embed', { pageId: msg.body.pageId, siteId: msg.body.siteId, error: (e as Error).message }, MAX_EMBED_DELIVERIES, 30);
     }
   }
 }

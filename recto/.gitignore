@@ -10,3 +10,6 @@ build
 coverage
 .miniflare
 .cache
+
+# Account/DB backup snapshots — contain PII + full DB dumps. Never commit.
+.backups/

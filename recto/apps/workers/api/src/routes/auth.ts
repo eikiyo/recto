@@ -31,9 +31,18 @@ authRouter.get('/callback', async (c) => {
   const uaHash = await hashToken(c.req.header('User-Agent') ?? 'unknown');
   const { cookie } = await createSession(c.env, redeemed.userId, ipHash, uaHash);
 
-  c.header('Set-Cookie', cookie);
-  // For now redirect to the workbench. The static UI handles the rest.
-  return c.redirect(`${c.env.RECTO_PUBLIC_ORIGIN}/app/workbench.html`, 302);
+  // Build the 302 explicitly. Going through c.header()+c.redirect() risks the
+  // Set-Cookie being dropped/clobbered on the new redirect Response, which left
+  // users bounced back to sign-in (the session cookie never landed). Setting
+  // both headers on one hand-built Response guarantees the cookie ships with
+  // the redirect. (Caught 2026-06-06: magic link → sign-in loop.)
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: `${c.env.RECTO_PUBLIC_ORIGIN}/app/workbench.html`,
+      'Set-Cookie': cookie,
+    },
+  });
 });
 
 authRouter.post('/logout', requireSession, async (c) => {
@@ -44,13 +53,12 @@ authRouter.post('/logout', requireSession, async (c) => {
 
 authRouter.get('/me', requireSession, async (c) => {
   const user = await c.env.DB.prepare(
-    'SELECT id, email, anchor_credits, last_login_at, digest_opt_in FROM users WHERE id = ?'
+    'SELECT id, email, last_login_at, digest_opt_in FROM users WHERE id = ?'
   )
     .bind(c.get('userId'))
     .first<{
       id: string;
       email: string;
-      anchor_credits: number;
       last_login_at: number | null;
       digest_opt_in: number;
     }>();
@@ -58,7 +66,6 @@ authRouter.get('/me', requireSession, async (c) => {
   return c.json({
     id: user.id,
     email: user.email,
-    anchorCredits: user.anchor_credits,
     lastLoginAt: user.last_login_at,
     digestOptIn: user.digest_opt_in === 1,
   });

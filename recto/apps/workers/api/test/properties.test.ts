@@ -68,31 +68,32 @@ describe('crypto round-trip properties', () => {
   });
 });
 
-describe('insertLink HTML-injection safety + idempotence', () => {
-  // Anchor + href arbitraries that include dangerous chars so we can prove
-  // escaping holds in all cases.
-  const anchorArb = fc.stringMatching(/^[\p{L}\p{N} '"<>&]{1,40}$/u);
+describe('insertLink HTML-injection safety + idempotence (wrap model)', () => {
+  // insertLink(original, anchorPhrase, href, scopeHint?). The anchor text is the
+  // blog's OWN words (an existing phrase), so the only externally-influenced
+  // value is the href — these props prove href escaping + idempotence hold.
   const hrefArb = fc.stringMatching(/^https:\/\/[a-z0-9.\-_/?&"=#]{3,80}$/);
 
-  it('output never contains literal "<script" regardless of input', () => {
+  it('output never contains literal "<script" regardless of href', () => {
     fc.assert(
-      fc.property(anchorArb, hrefArb, (anchor, href) => {
-        const html = '<p>Source paragraph.</p>';
-        const { content } = insertLink(html, 'Source paragraph.', anchor, href);
+      fc.property(hrefArb, (href) => {
+        const html = '<p>Source paragraph words here.</p>';
+        const { content } = insertLink(html, 'Source paragraph', href);
         expect(content.toLowerCase()).not.toMatch(/<script/);
       }),
       { numRuns: 60 }
     );
   });
 
-  it('inserting twice with the same target is idempotent', () => {
+  it('wrapping twice with the same target is idempotent', () => {
     fc.assert(
-      fc.property(anchorArb, hrefArb, (anchor, href) => {
-        const html = '<p>Source paragraph.</p>';
-        const first = insertLink(html, 'Source paragraph.', anchor, href);
-        if (first.alreadyLinked) return; // Triggered the alreadyLinked branch (e.g. dangerous href detected) — done.
-        const second = insertLink(first.content, 'Source paragraph.', anchor, href);
-        // Second call must either be alreadyLinked OR produce no further insertion.
+      fc.property(hrefArb, (href) => {
+        const html = '<p>Source paragraph words here.</p>';
+        const first = insertLink(html, 'Source paragraph', href);
+        if (first.alreadyLinked || first.phraseNotFound) return;
+        const second = insertLink(first.content, 'Source paragraph', href);
+        // Second call sees THIS target's href already present (same escaped form
+        // we emit) → alreadyLinked. Idempotency is per-href, not per-marker.
         expect(second.alreadyLinked).toBe(true);
       }),
       { numRuns: 60 }
@@ -100,17 +101,18 @@ describe('insertLink HTML-injection safety + idempotence', () => {
   });
 
   it('href quote chars are escaped (no attribute-break vulnerability)', () => {
-    const html = '<p>Marker.</p>';
+    const html = '<p>Marker phrase here.</p>';
     const evil = 'https://x/"; onclick="alert(1)';
-    const { content } = insertLink(html, 'Marker.', 'anchor', evil);
-    // The literal `"; onclick=` substring must not survive escaping.
+    const { content } = insertLink(html, 'Marker phrase', evil);
     expect(content).not.toContain('"; onclick');
   });
 
-  it('anchor text "<script>" comes out as &lt;script&gt; not <script>', () => {
-    const html = '<p>Marker.</p>';
-    const { content } = insertLink(html, 'Marker.', '<script>alert(1)</script>', 'https://x/y');
-    expect(content).toContain('&lt;script&gt;');
-    expect(content.toLowerCase()).not.toContain('<script>');
+  it('wraps the blog’s OWN words verbatim — never injects authored anchor text', () => {
+    const html = '<p>The annual harvest report covers the whole season.</p>';
+    const { content, via } = insertLink(html, 'annual harvest report', 'https://x/y');
+    expect(via).toBe('wrap');
+    // Inner text of our anchor must be exactly the existing phrase from the post.
+    const m = content.match(/data-recto-link="1">([^<]*)<\/a>/);
+    expect(m?.[1]).toBe('annual harvest report');
   });
 });

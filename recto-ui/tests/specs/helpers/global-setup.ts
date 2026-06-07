@@ -3,10 +3,31 @@
 // have something to act against. Runs once before the Playwright workers
 // spawn.
 import { execSync } from 'child_process';
-import { promises as fs } from 'fs';
+import { promises as fs, readdirSync } from 'fs';
+import { join, resolve } from 'path';
 
-const DB_PATH =
-  '/Users/seyedmosayebalameikiyo/Desktop/Kage OS/projects/D-Saas-01/Knowledge/recto/apps/workers/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/c6fd68c54de15a864a3a484cdb98133c06756dbee6877a5b1a24969705d22006.sqlite';
+// Resolve the local miniflare D1 sqlite file portably. Its filename is a content
+// hash that differs per machine, so we glob the miniflare state dir rather than
+// hardcoding a path. Override with RECTO_D1_PATH if your wrangler state lives
+// elsewhere.
+function resolveD1Path(): string {
+  if (process.env.RECTO_D1_PATH) return process.env.RECTO_D1_PATH;
+  // tests/specs/helpers → repo root → recto backend miniflare D1 state.
+  const stateDir = resolve(
+    __dirname,
+    '../../../../recto/apps/workers/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject',
+  );
+  const file = readdirSync(stateDir).find((f) => f.endsWith('.sqlite'));
+  if (!file) {
+    throw new Error(
+      `No local D1 sqlite found in ${stateDir}. Run ` +
+        '`pnpm --filter @recto/api db:migrate:local` first, or set RECTO_D1_PATH.',
+    );
+  }
+  return join(stateDir, file);
+}
+
+const DB_PATH = resolveD1Path();
 
 function sql(q: string): string {
   // Flatten whitespace — sqlite3's shell rejects embedded newlines in the
@@ -28,18 +49,14 @@ export default async function globalSetup(): Promise<void> {
   sql(`DELETE FROM candidates WHERE orphan_page_id IN (SELECT id FROM pages WHERE site_id IN (SELECT id FROM sites WHERE user_id IN (SELECT id FROM users WHERE email='${email}')))`);
   sql(`DELETE FROM pages WHERE site_id IN (SELECT id FROM sites WHERE user_id IN (SELECT id FROM users WHERE email='${email}'))`);
   sql(`DELETE FROM sites WHERE user_id IN (SELECT id FROM users WHERE email='${email}')`);
-  sql(`DELETE FROM licenses WHERE user_id IN (SELECT id FROM users WHERE email='${email}')`);
   sql(`DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE email='${email}')`);
   sql(`DELETE FROM magic_tokens WHERE user_id IN (SELECT id FROM users WHERE email='${email}')`);
   sql(`DELETE FROM users WHERE email='${email}'`);
 
-  // 1. User + license + onboarded.
+  // 1. User + onboarded (self-hosted: no license, no credits).
   const userId = ulid();
-  sql(`INSERT INTO users (id, email, name, created_at, onboarded_at, anchor_credits, digest_opt_in)
-       VALUES ('${userId}', '${email}', 'Eikiyo', ${now}, ${now}, 100, 1)`);
-  const licenseId = ulid();
-  sql(`INSERT INTO licenses (id, user_id, appsumo_code, tier, redeemed_at)
-       VALUES ('${licenseId}', '${userId}', 'fx-code-${now}', 1, ${now})`);
+  sql(`INSERT INTO users (id, email, name, created_at, onboarded_at, digest_opt_in)
+       VALUES ('${userId}', '${email}', 'Eikiyo', ${now}, ${now}, 1)`);
 
   // 2. Site.
   const siteId = ulid();

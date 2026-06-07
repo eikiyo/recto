@@ -1,0 +1,11 @@
+-- 0005_page_body_text — store the full cleaned body text per page.
+--
+-- The core value prop is wrapping an EXISTING phrase from the real post body
+-- in place (never authoring new anchor text, never appending a paragraph).
+-- To pick that phrase the anchor selector needs the page's prose, and to
+-- validate a user-edited anchor we must confirm it is a verbatim substring of
+-- that prose. `excerpt` is capped at 8000 chars and reused for hashing/display;
+-- `body_text` holds a larger cleaned copy dedicated to phrase selection.
+-- Nullable + backfilled on the next crawl, so existing rows keep working
+-- (selection falls back to excerpt until a re-crawl populates body_text).
+ALTER TABLE pages ADD COLUMN body_text TEXT;

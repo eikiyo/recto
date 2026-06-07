@@ -11,10 +11,21 @@
 
 import type { Env } from '../env';
 import { pushLink, type PushOutcome } from '../integrations/wordpress';
+import { fetchWithTimeout } from '../lib/http';
+import { retryOrDrop } from '../lib/queue';
 
 type PushMsg = { pushId: string };
 
 const MAX_RETRY = 3;
+// Hard delivery ceiling for the UNEXPECTED-exception path. The handled retries
+// (transient WP / retryable outcome) self-bound at MAX_RETRY via msg.attempts;
+// this only governs a message whose runPush THROWS every time (e.g. a malformed
+// stored site_url so `new URL()` raises, or a persistent D1 error). A bare
+// msg.retry() there loops to the ~100-delivery platform default and then SILENTLY
+// drops — the exact poison-message failure retryOrDrop exists to bound (every
+// other consumer already uses it; q-push had been missed). (Hardened 2026-06-07.)
+const MAX_PUSH_DELIVERIES = 5;
+const WP_TIMEOUT_MS = 10_000; // slug→post-id resolution against an untrusted WP host
 
 export async function handlePushBatch(batch: MessageBatch<PushMsg>, env: Env): Promise<void> {
   for (const msg of batch.messages) {
@@ -26,8 +37,7 @@ export async function handlePushBatch(batch: MessageBatch<PushMsg>, env: Env): P
         msg.ack();
       }
     } catch (e) {
-      console.error('push error', { pushId: msg.body.pushId, error: (e as Error).message });
-      msg.retry({ delaySeconds: 30 });
+      retryOrDrop(msg, 'push', { pushId: msg.body.pushId, error: (e as Error).message }, MAX_PUSH_DELIVERIES, 30);
     }
   }
 }
@@ -82,11 +92,23 @@ async function runPush(env: Env, pushId: string, attempt: number): Promise<boole
   // with slug filter; cache by slug in KV with 24h TTL to avoid hammering.
   // D1 returns BLOB as ArrayBuffer; decrypt needs a Uint8Array view, so wrap.
   const encryptedSecret = row.wp_app_password ? new Uint8Array(row.wp_app_password as ArrayBuffer) : null;
-  const postId = await resolveSlugToPostId(env, row.source_page_id, row.site_url, row.source_slug, row.wp_username, encryptedSecret);
-  if (!postId) {
+  const resolved = await resolveSlugToPostId(env, row.source_page_id, row.site_url, row.source_slug, row.wp_username, encryptedSecret);
+  // A transient failure reaching WP during slug resolution (timeout, network,
+  // 5xx) must NOT be recorded as a permanent wp_post_not_found — that flips the
+  // core action to a dead "failed" the user has to manually retry over a blip.
+  // Retry it on the same bounded schedule as a failed pushLink; only give up
+  // (as wp_network) after MAX_RETRY. (Hardened 2026-06-07.)
+  if (resolved === 'transient') {
+    if (attempt < MAX_RETRY) return true;
+    await markFailure(env, pushId, 'wp_network', `could not reach ${row.site_url} to resolve source post after ${MAX_RETRY} attempts`);
+    return false;
+  }
+  if (resolved === null) {
+    // Genuine not-found / bad credential — retrying won't change the answer.
     await markFailure(env, pushId, 'wp_post_not_found', `slug ${row.source_slug} not resolvable`);
     return false;
   }
+  const postId = resolved;
 
   const targetHref = new URL(row.orphan_slug, row.site_url).toString();
   const outcome: PushOutcome = await pushLink(env, {
@@ -100,15 +122,40 @@ async function runPush(env: Env, pushId: string, attempt: number): Promise<boole
   });
 
   if (outcome.ok) {
+    // 'pushed' = written to the CMS, awaiting verification. Distinct from the
+    // 'pending' a push starts in. Cloudflare Queues are at-least-once: if this
+    // message is redelivered (consumer crashed after the CMS write but before
+    // ack), the guard above (`status !== 'pending'`) now short-circuits it
+    // instead of re-pushing. (Hardened 2026-06-06.)
     await env.DB.prepare(
       `UPDATE pushes
-          SET status = 'pending',
+          SET status = 'pushed',
               pushed_at = ?,
               failure_code = NULL,
               failure_msg = NULL
         WHERE id = ?`
     )
       .bind(outcome.insertedAt, pushId)
+      .run();
+    await env.Q_VERIFY.send({ pushId, attempt: 1 });
+    return false;
+  }
+
+  // wp_already_linked means the link IS present in the post — the user's goal is
+  // met. This is overwhelmingly a redelivered q-push re-running a push we already
+  // completed (the insertLink marker / target href is already in the HTML). Treat
+  // it as a success and let the verifier confirm the live link, rather than
+  // flipping a real success to 'failed'. (Hardened 2026-06-06.)
+  if (outcome.code === 'wp_already_linked') {
+    await env.DB.prepare(
+      `UPDATE pushes
+          SET status = 'pushed',
+              pushed_at = ?,
+              failure_code = NULL,
+              failure_msg = NULL
+        WHERE id = ?`
+    )
+      .bind(Date.now(), pushId)
       .run();
     await env.Q_VERIFY.send({ pushId, attempt: 1 });
     return false;
@@ -142,6 +189,10 @@ async function markFailure(
     .run();
 }
 
+// Returns the post id, `null` for a PERMANENT miss (genuine not-found, missing/
+// bad credential — retrying won't help), or the sentinel `'transient'` when WP
+// could not be reached (timeout, network, 5xx) so the caller can retry instead
+// of recording a permanent failure.
 async function resolveSlugToPostId(
   env: Env,
   pageId: string,
@@ -149,7 +200,7 @@ async function resolveSlugToPostId(
   slug: string,
   username: string | null,
   encrypted: Uint8Array | null
-): Promise<number | null> {
+): Promise<number | null | 'transient'> {
   // Cache hit?
   const cacheKey = `wp:slug:${pageId}`;
   const cached = await env.KV.get(cacheKey);
@@ -162,7 +213,7 @@ async function resolveSlugToPostId(
   try {
     secret = await decrypt(encrypted, env.RECTO_KEK);
   } catch {
-    return null;
+    return null; // bad stored credential — permanent, not a blip
   }
   const auth = secret.startsWith('jwt:')
     ? `Bearer ${secret.slice(4)}`
@@ -175,10 +226,13 @@ async function resolveSlugToPostId(
   const url = `${siteUrl.replace(/\/$/, '')}/wp-json/wp/v2/posts?slug=${encodeURIComponent(wpSlug)}&_fields=id`;
   let res: Response;
   try {
-    res = await fetch(url, { headers: { Authorization: auth, 'User-Agent': 'recto/1.0' } });
+    res = await fetchWithTimeout(url, { headers: { Authorization: auth, 'User-Agent': 'recto/1.0' } }, WP_TIMEOUT_MS);
   } catch {
-    return null;
+    return 'transient'; // timeout / network error — WP may just be briefly down
   }
+  // 5xx is the host failing, not a definitive "no such post" — retry it.
+  if (res.status >= 500) return 'transient';
+  // 4xx (auth, 404) is a definitive answer for this request — permanent.
   if (!res.ok) return null;
   const rows = (await res.json().catch(() => [])) as Array<{ id: number }>;
   if (!Array.isArray(rows) || rows.length === 0) return null;

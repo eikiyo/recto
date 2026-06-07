@@ -72,12 +72,22 @@ export async function redeemMagicLink(env: Env, token: string): Promise<{ userId
     .first<{ user_id: string; expires_at: number; used_at: number | null }>();
 
   if (!row) return null;
-  if (row.used_at !== null) return null;
+  if (row.used_at !== null) return null; // fast-path; the real gate is below
   if (row.expires_at < Date.now()) return null;
 
-  await env.DB.prepare('UPDATE magic_tokens SET used_at = ? WHERE hash = ?')
+  // One-shot use, enforced ATOMICALLY. A check-then-update (the SELECT above,
+  // then a bare UPDATE) lets two concurrent redemptions of the same token both
+  // pass the used_at null-check and each mint a session (TOCTOU). Make the UPDATE
+  // itself the gate: only one writer can flip used_at from NULL → now. Treat
+  // "0 rows changed" as "already redeemed / lost the race" and refuse.
+  // (Hardened 2026-06-06.)
+  const claim = await env.DB.prepare(
+    'UPDATE magic_tokens SET used_at = ? WHERE hash = ? AND used_at IS NULL'
+  )
     .bind(Date.now(), hash)
     .run();
+  const changed = (claim.meta as { changes?: number } | undefined)?.changes ?? 0;
+  if (changed === 0) return null;
 
   return { userId: row.user_id };
 }

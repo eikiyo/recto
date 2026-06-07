@@ -5,13 +5,10 @@ import { z } from 'zod';
 
 // ====== Constants from PRD/TRD ======
 
-// Pricing: 1 code = 1 site + 100 anchor credits/month. Stack codes to add sites
-// and grow the monthly credit pool. Credits do NOT carry over month-to-month —
-// the monthly cron resets each user to `code_count * ANCHOR_CREDITS_PER_CODE_MONTHLY`.
-export const CODE_PRICE_USD = 39;
-export const ANCHOR_CREDITS_PER_CODE_MONTHLY = 100;
-export const SITE_CAP_PER_CODE = 1;
-
+// Self-hosted: unlimited sites, no credits, no billing. Connect as many sites as
+// your own Cloudflare account can handle and generate as many anchors as you like
+// (you bring your own AI — Workers AI on your account, or your own OpenAI/
+// Anthropic key via BYOK). There is no metering layer in the open-source edition.
 export const CRAWL_MAX_PAGES = 10_000;
 export const SIMILARITY_TOP_K = 3;
 export const SIMILARITY_TOP_K_ALL = 20; // "View all 14 →"

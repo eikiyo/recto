@@ -62,12 +62,37 @@
   function pageSitesNew() {
     var form = $('#connect-form') || $('#site-form') || $$('form')[0];
     if (!form) return;
-    // Pre-fill the URL from ?url= (set by the onboarding card on workbench).
-    var prefill = new URLSearchParams(window.location.search).get('url');
-    if (prefill) {
-      var urlField = form.querySelector('[name="site_url"], [name="url"], #site-url');
-      if (urlField && !urlField.value) urlField.value = prefill;
+    // CMS radio selection highlight (visual only). Lives here, not as an inline
+    // <script>, so it complies with the page CSP (script-src 'self').
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="cms"]'), function (r) {
+      r.addEventListener('change', function (e) {
+        Array.prototype.forEach.call(document.querySelectorAll('.radio'), function (l) { l.classList.remove('radio--selected'); });
+        var lab = e.target.closest('.radio');
+        if (lab) lab.classList.add('radio--selected');
+      });
+    });
+    var params = new URLSearchParams(window.location.search);
+    // EDIT MODE: ?siteId=<id> turns this into "update credentials" for an
+    // existing site — verify + re-encrypt the app password WITHOUT re-crawling.
+    // This is how a user fixes a wp_auth_failed push without losing the crawl.
+    var editSiteId = params.get('siteId');
+    var urlField = form.querySelector('[name="site_url"], [name="url"], #site-url');
+
+    if (editSiteId) {
+      var submitBtn = form.querySelector('[type="submit"], [data-testid="connect-btn"]');
+      if (submitBtn) submitBtn.textContent = 'Update credentials';
+      // Lock the URL (creds-only update) and hydrate it from the API.
+      if (urlField) { urlField.readOnly = true; urlField.style.opacity = '0.6'; }
+      api.workbenchSites().then(function (rs) {
+        var s = (rs.sites || []).find(function (x) { return x.id === editSiteId; });
+        if (s && urlField) urlField.value = s.url;
+      }).catch(function () {});
+    } else {
+      // Pre-fill the URL from ?url= (set by the onboarding card on workbench).
+      var prefill = params.get('url');
+      if (prefill && urlField && !urlField.value) urlField.value = prefill;
     }
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       function get(names) {
@@ -85,6 +110,21 @@
       var user = get(['wp_username', 'wp_user']); if (user) data.wp_username = user;
       var pass = get(['wp_app_password', 'wp_pass']); if (pass) data.wp_app_password = pass;
       var wf = get(['webflow_api_key']); if (wf) data.webflow_api_key = wf;
+
+      if (editSiteId) {
+        // Update-credentials path: verify + save, then back to audit so the user
+        // can Retry the failed push immediately. No re-crawl.
+        api.updateCreds(editSiteId, {
+          wp_username: data.wp_username,
+          wp_app_password: data.wp_app_password,
+          webflow_api_key: data.webflow_api_key,
+        }).then(function () {
+          toast('Credentials verified and saved.');
+          go('/app/audit.html');
+        }).catch(showError);
+        return;
+      }
+
       api.connectSite(data).then(function (site) {
         toast('Site connected. Crawling.');
         return api.recrawl(site.id).then(function (r) {
@@ -180,26 +220,92 @@
 
     var statusEl = $('[data-testid="crawl-status"]') || document.body;
     var progressEl = $('[data-testid="crawl-progress"]');
+    var etaEl = $('[data-testid="crawl-eta"]');
     var barEl = document.getElementById('bar');
+
+    // ETA: sample the first (done, time) pair, then extrapolate pages/sec from
+    // it. Cheap, no server support needed; "estimating…" until we have a rate.
+    var t0 = null, done0 = null;
+    function nowMs() {
+      return (window.performance && performance.now) ? performance.now() : (+new Date());
+    }
+    function etaText(state) {
+      var done = state.done || 0, total = state.total || 0;
+      if (!total || done >= total) return '';
+      var now = nowMs();
+      if (t0 === null && done > 0) { t0 = now; done0 = done; }
+      if (t0 === null || done <= done0) return ' · estimating…';
+      var rate = (done - done0) / ((now - t0) / 1000); // pages/sec
+      if (!(rate > 0)) return ' · estimating…';
+      var secs = Math.ceil((total - done) / rate);
+      if (secs >= 90) return ' · ~' + Math.ceil(secs / 60) + ' min left';
+      return ' · ~' + secs + 's left';
+    }
+
+    var pendingPolls = 0;
     function render(state) {
-      if (statusEl) statusEl.textContent = state.complete ? 'Crawl complete.' : 'Reading your site.';
-      if (progressEl) progressEl.textContent = (state.done || 0) + ' / ' + (state.total || '?') + ' pages';
-      if (barEl && state.total) {
-        var pct = Math.min(100, Math.round((state.done / state.total) * 100));
+      // The poll/SSE can hand us null (DO not yet initialized), an error shape,
+      // or a {pending:true} placeholder. render MUST tolerate all of them — a
+      // throw here used to be swallowed by the poller and freeze the page on the
+      // static "Starting…" copy. (Learning 2026-06-06: progress must never lie.)
+      if (!state || typeof state !== 'object') state = { done: 0, total: 0, complete: false, pending: true };
+      var total = state.total || 0;
+      var done = state.done || 0;
+      var waiting = !total && !state.complete;
+
+      if (statusEl) statusEl.textContent = state.complete ? 'Crawl complete.' : (waiting ? 'Starting…' : 'Reading your site.');
+      if (progressEl) progressEl.textContent = waiting ? 'Waiting for the first page…' : (done + ' / ' + (total || '?') + ' pages');
+      if (etaEl) etaEl.textContent = state.complete ? '' : etaText(state);
+      if (barEl && total) {
+        var pct = Math.min(100, Math.round((done / total) * 100));
         barEl.style.width = pct + '%';
         barEl.setAttribute('aria-valuenow', String(pct));
       }
-      if (state.complete) setTimeout(function () { go('/app/workbench.html'); }, 1500);
+      if (state.complete) { stop(); setTimeout(function () { go('/app/workbench.html'); }, 1500); return; }
+
+      // Self-heal a stale/dead crawlId: if we stay "pending" with no progress for
+      // ~15s, this tab is pointed at a crawl that isn't reporting. Check whether
+      // the site already finished a crawl and, if so, move on instead of
+      // pretending to wait forever.
+      if (waiting) {
+        pendingPolls += 1;
+        if (pendingPolls === 8) {
+          api.workbenchSites().then(function (rs) {
+            var site = (rs.sites || []).find(function (s) { return s.id === siteId; });
+            if (site && site.crawlPages > 0) {
+              if (statusEl) statusEl.textContent = 'Crawl finished earlier.';
+              if (progressEl) progressEl.textContent = site.crawlPages + ' pages indexed';
+              stop();
+              setTimeout(function () { go('/app/workbench.html'); }, 1500);
+            }
+          }).catch(function () { /* keep waiting */ });
+        }
+      } else {
+        pendingPolls = 0;
+      }
     }
-    // Try SSE first; fall back to polling.
+
+    // ALWAYS poll — it is the source of truth and never silently dies. SSE (when
+    // it works) is a live bonus on top. EventSource never throws synchronously
+    // and auto-reconnects forever, so it can NEVER be the only signal: a frozen
+    // page with no progress is the worst possible UX. (Learning 2026-06-06.)
+    var stopped = false;
+    var es = null;
+    function poll() {
+      api.crawlState(siteId, crawlId).then(render).catch(function () { /* keep polling */ });
+    }
+    function stop() {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(iv);
+      if (es) { try { es.close(); } catch (e) {} }
+    }
+    poll(); // immediate first paint — no 2s "Starting…" dead air
+    var iv = setInterval(poll, 2000);
     try {
-      var es = api.crawlSSE(siteId, crawlId, render);
-      window.addEventListener('beforeunload', function () { es.close(); });
-    } catch (e) {
-      var iv = setInterval(function () {
-        api.crawlState(siteId, crawlId).then(render).catch(function () { clearInterval(iv); });
-      }, 2000);
-    }
+      es = api.crawlSSE(siteId, crawlId, render, function () { /* onerror: polling already covers us */ });
+    } catch (e) { /* SSE unsupported — polling carries it */ }
+    window.addEventListener('beforeunload', stop);
   }
 
   // First-time onboarding card. Shown on workbench iff the user has not yet
@@ -254,6 +360,19 @@
       if (!list) return;
       list.innerHTML = '';
       var sites = r.sites || [];
+
+      // Hero CTA: total open orphans across sites = quick wins waiting. Deep-link
+      // straight into the guided spine for the site with the most to do.
+      var totalOrphans = sites.reduce(function (n, s) { return n + (s.open_orphans || 0); }, 0);
+      var hero = $('[data-testid="qw-hero"]');
+      if (hero && totalOrphans > 0) {
+        setText('[data-testid="qw-hero-count"]', totalOrphans);
+        var busiest = sites.slice().sort(function (a, b) { return (b.open_orphans || 0) - (a.open_orphans || 0); })[0];
+        var cta = $('[data-testid="qw-hero-cta"]');
+        if (cta && busiest) cta.href = '/app/quick-wins.html?siteId=' + encodeURIComponent(busiest.id);
+        hero.hidden = false;
+      }
+
       if (!sites.length) {
         list.innerHTML = '<li class="muted">No sites yet. <a href="/app/sites-new.html">Connect your first site →</a></li>';
         return;
@@ -276,6 +395,13 @@
           '<div class="site-row__stat">' + (s.verified_pushes || 0) + ' verified</div>' +
           '<div class="site-row__stat">→</div>';
         list.appendChild(a);
+        // Per-site "update credentials" link (can't nest inside the row anchor).
+        // Discoverable entry point to fix a stale/wrong app password without a
+        // delete + re-crawl. (2026-06-06.)
+        var creds = document.createElement('div');
+        creds.style = 'margin: -4px 0 12px; padding-left: 2px; font-size: 12px;';
+        creds.innerHTML = '<a class="muted" href="/app/sites-new.html?siteId=' + encodeURIComponent(s.id) + '">⚙ Update credentials</a>';
+        list.appendChild(creds);
       });
     }).catch(function () { /* silent — page renders skeleton */ });
 
@@ -293,7 +419,7 @@
         var t = p.pushed_at ? new Date(p.pushed_at).toISOString().substr(11, 5) : '';
         var host = '';
         try { host = new URL(p.site_url).hostname; } catch (e) { host = p.site_url; }
-        var status = p.status === 'verified' ? 'Pushed' : p.status === 'failed' ? 'Failed' : 'Pending';
+        var status = p.status === 'verified' ? 'Pushed' : p.status === 'failed' ? 'Failed' : p.status === 'pushed' ? 'Verifying' : 'Pending';
         var li = document.createElement('li');
         li.style = 'padding: var(--s-2) 0; border-bottom: 1px solid var(--rule);';
         li.innerHTML = '<span class="mono muted">' + escape(t) + '</span> ' + escape(status) +
@@ -374,7 +500,39 @@
         });
         list.appendChild(tr);
       });
+
+      // PREWARM: warm the server-side candidate cache for the orphans the user
+      // is most likely to click, so "Fix this" reads from cache and renders
+      // instantly instead of computing on click. Bounded to the top few to cap
+      // Workers-AI cost; cache makes each a one-time spend. (2026-06-06.)
+      rows.slice(0, 5).forEach(function (o) {
+        api.listCandidates(siteId, o.id).catch(function () { /* best-effort warm */ });
+      });
     }).catch(showError);
+
+    // Re-read button — kick off a fresh crawl, then go to the progress page.
+    // Lives here (not in an inline <script>) because the page CSP is
+    // script-src 'self', which blocks inline handlers outright. (Hardened 2026-06-06.)
+    var recrawlBtn = document.getElementById('recrawl-btn');
+    if (recrawlBtn) {
+      recrawlBtn.addEventListener('click', function () {
+        if (!siteId) return;
+        recrawlBtn.disabled = true;
+        api.recrawl(siteId).then(function (r) {
+          go('/app/crawl.html?siteId=' + encodeURIComponent(siteId) + '&crawlId=' + encodeURIComponent(r.crawlId));
+        }).catch(function (err) { recrawlBtn.disabled = false; showError(err); });
+      });
+    }
+
+    // GSC banner dismiss.
+    var dismissBanner = document.getElementById('dismiss-banner');
+    if (dismissBanner) {
+      dismissBanner.addEventListener('click', function (e) {
+        e.preventDefault();
+        var banner = document.getElementById('gsc-banner');
+        if (banner) banner.remove();
+      });
+    }
   }
 
   function humanAgo(ts) {
@@ -407,15 +565,25 @@
       catch (e) { setText('[data-testid="insertion-host"]', match.url); }
     }).catch(function () { /* silent */ });
 
+    // Render the orphan target IMMEDIATELY from the (fast, no-LLM) orphans list
+    // instead of waiting on the candidate computation. The orphan title/slug is
+    // known the moment the user clicks "Fix this" — there is no reason to show a
+    // blank "…" header while candidates compute. (2026-06-06 UX fix.)
+    function fillHead(title, slug) {
+      var headText = decodeEntities(title || slug || '');
+      setText('[data-testid="orphan-head"]', headText);
+      var legacy = document.getElementById('orphan-h');
+      if (legacy) legacy.textContent = headText;
+      if (slug) setText('[data-testid="orphan-slug"]', slug + ' · 0 inbound internal links');
+    }
+    api.listOrphans(siteId, 200).then(function (lr) {
+      var o = ((lr && lr.orphans) || []).find(function (x) { return x.id === orphanId; });
+      if (o) fillHead(o.title, o.slug);
+    }).catch(function () { /* candidates response will fill it as a fallback */ });
+
     api.listCandidates(siteId, orphanId).then(function (r) {
       if (r.orphan) {
-        var headText = decodeEntities(r.orphan.title || r.orphan.slug);
-        setText('[data-testid="orphan-head"]', headText);
-        // Legacy spec hook — the old mockup used #orphan-h. Keep both targets
-        // in sync so persona specs don't need to know about the rename.
-        var legacy = document.getElementById('orphan-h');
-        if (legacy) legacy.textContent = headText;
-        setText('[data-testid="orphan-slug"]', r.orphan.slug + ' · 0 inbound internal links');
+        fillHead(r.orphan.title, r.orphan.slug);
       }
       var list = $('[data-testid="candidate-list"]');
       if (!list) return;
@@ -490,6 +658,35 @@
         }).catch(showError).then(function () { btn.disabled = false; });
       }
     });
+
+    // Back-link carries the siteId so "← Orphans" returns to the right list.
+    // (Moved out of an inline <script> — blocked by CSP script-src 'self' — and
+    // off the non-existent window.api global it used. Hardened 2026-06-06.)
+    var backLink = document.getElementById('back-link');
+    if (backLink && siteId) {
+      backLink.href = '/app/orphans.html?siteId=' + encodeURIComponent(siteId);
+    }
+
+    // "Move to next orphan" — advance within the insertion view instead of
+    // bouncing to the list. Falls back to the list on the last orphan or error.
+    var nextLink = document.getElementById('next-orphan');
+    if (nextLink) {
+      nextLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        function backToList() {
+          go('/app/orphans.html' + (siteId ? '?siteId=' + encodeURIComponent(siteId) : ''));
+        }
+        if (!siteId || !orphanId) return backToList();
+        api.listOrphans(siteId, 200).then(function (r) {
+          var rows = (r && r.orphans) || [];
+          var i = rows.findIndex(function (o) { return o.id === orphanId; });
+          if (i === -1) return backToList();
+          var next = rows[i + 1];
+          if (!next) return backToList(); // already on the last orphan
+          go('/app/insertion.html?siteId=' + encodeURIComponent(siteId) + '&orphanId=' + encodeURIComponent(next.id));
+        }).catch(backToList);
+      });
+    }
   }
 
   // ─── audit ────────────────────────────────────────────────────────────
@@ -497,12 +694,22 @@
   // table <tbody data-testid="audit-list"> on /app/audit.html. We detect
   // tag and emit <tr> vs <li> accordingly.
   function pageAudit() {
-    api.listPushes({ limit: 100 }).then(function (r) {
-      var list = $('[data-testid="audit-list"]');
-      if (!list) return;
+    var auditTimer = null;
+
+    // Build a clickable live URL from a site root + a slug so the user can open
+    // the actual page and SEE the change, instead of staring at plain text.
+    function liveUrl(siteUrl, slug) {
+      try { return new URL(slug, siteUrl).toString(); } catch (e) { return null; }
+    }
+    function slugLink(siteUrl, slug) {
+      var href = liveUrl(siteUrl, slug);
+      var text = escape(slug || '');
+      if (!href) return text;
+      return '<a href="' + escape(href) + '" target="_blank" rel="noopener" title="Open the live page in a new tab">' + text + '</a>';
+    }
+
+    function render(pushes, isTable, list) {
       list.innerHTML = '';
-      var isTable = list.tagName === 'TBODY';
-      var pushes = r.pushes || [];
       if (!pushes.length) {
         list.innerHTML = isTable
           ? '<tr><td colspan="6" class="muted" style="padding: var(--s-3); text-align:center;">No pushes yet — approve a candidate from the Orphans page to start.</td></tr>'
@@ -514,7 +721,8 @@
         var badgeGlyph = p.status === 'verified' ? '✓' : p.status === 'failed' ? '✕' : '!';
         var statusLabel = p.status === 'verified'
           ? 'verified live' + (p.verified_via ? ' · ' + escape(p.verified_via) : '')
-          : (p.status === 'failed' ? 'push failed' + (p.failure_code ? ' (' + escape(p.failure_code) + ')' : '') : 'pending');
+          : (p.status === 'failed' ? 'push failed' + (p.failure_code ? ' (' + escape(p.failure_code) + ')' : '')
+            : (p.status === 'pushed' ? 'pushed · verifying' : 'pending'));
         var when = p.pushed_at ? new Date(p.pushed_at).toISOString().replace('T', ' ').slice(0, 16) : '';
         var site = '';
         try { site = new URL(p.site_url).hostname; } catch (e) { site = p.site_url || ''; }
@@ -523,13 +731,20 @@
           var msg = window.rectoErrors.describe(p.failure_code);
           failureNote = '<div class="muted" style="font-size:11px; margin-top:2px;">' + escape(msg.what || '') + '</div>';
         }
-        // Only emit a real action when the row has a real backend operation
-        // available. Retry exists (POST /api/pushes/:id/retry). Undo + Verify
-        // do not exist in the worker — we render nothing rather than a
-        // dead-link stub.
-        var retryLink = p.status === 'failed'
-          ? '<button type="button" class="btn btn--sm" data-action="retry" data-id="' + escape(p.id) + '">Retry</button>'
+        // On a verified row, offer a direct "View link" to the source page where
+        // the link now lives — proof the change happened. Failed rows get Retry,
+        // plus a "Fix credentials" shortcut when the failure is an auth problem
+        // (the fix is to re-enter a valid app password, not to retry the same
+        // bad creds). 2026-06-06.
+        var isAuthFail = p.failure_code === 'wp_auth_failed' || p.failure_code === 'wp_no_edit_access';
+        var fixCreds = (p.status === 'failed' && isAuthFail && p.site_id)
+          ? '<a class="btn btn--sm btn--primary" href="/app/sites-new.html?siteId=' + encodeURIComponent(p.site_id) + '">Fix credentials →</a> '
           : '';
+        var rowAction = p.status === 'failed'
+          ? fixCreds + '<button type="button" class="btn btn--sm" data-action="retry" data-id="' + escape(p.id) + '">Retry</button>'
+          : (liveUrl(p.site_url, p.source_slug)
+              ? '<a class="btn btn--sm" href="' + escape(liveUrl(p.site_url, p.source_slug)) + '" target="_blank" rel="noopener">View link ↗</a>'
+              : '');
 
         if (isTable) {
           var tr = document.createElement('tr');
@@ -537,30 +752,53 @@
           tr.innerHTML =
             '<td class="mono muted">' + escape(when) + '</td>' +
             '<td class="mono">' + escape(site) + '</td>' +
-            '<td class="mono" style="font-size:12px;">' + escape(p.source_slug) + '<br>→ ' + escape(p.orphan_slug) + '</td>' +
+            '<td class="mono" style="font-size:12px;">' + slugLink(p.site_url, p.source_slug) + '<br>→ ' + slugLink(p.site_url, p.orphan_slug) + '</td>' +
             '<td>' + escape(p.anchor_text) + failureNote + '</td>' +
             '<td><span class="badge badge--' + statusClass + '"><span class="badge__glyph" aria-hidden="true">' + badgeGlyph + '</span>' + statusLabel + '</span></td>' +
-            '<td>' + retryLink + '</td>';
+            '<td>' + rowAction + '</td>';
           list.appendChild(tr);
         } else {
           var li = document.createElement('li');
           li.className = 'audit-row audit-row--' + (p.status === 'verified' ? 'ok' : p.status === 'failed' ? 'err' : 'pending');
           li.innerHTML =
-            '<div class="audit-row__where"><code>' + escape(p.source_slug) + '</code> → <code>' + escape(p.orphan_slug) + '</code></div>' +
+            '<div class="audit-row__where">' + slugLink(p.site_url, p.source_slug) + ' → ' + slugLink(p.site_url, p.orphan_slug) + '</div>' +
             '<div class="audit-row__anchor"><em>' + escape(p.anchor_text) + '</em></div>' +
             '<div class="audit-row__status">' + escape(p.status) + (p.verified_via ? ' · ' + escape(p.verified_via) : '') + '</div>' +
-            failureNote + retryLink;
+            failureNote + rowAction;
           list.appendChild(li);
         }
       });
-    }).catch(showError);
+    }
+
+    function load() {
+      var list = $('[data-testid="audit-list"]');
+      if (!list) return;
+      var isTable = list.tagName === 'TBODY';
+      api.listPushes({ limit: 100 }).then(function (r) {
+        var pushes = r.pushes || [];
+        render(pushes, isTable, list);
+        // AUTO-REFRESH: pushes flip pending → verified/failed in the background
+        // (q-verify checks the live page within ~60s). Poll until every row is
+        // terminal so the user never has to manually reload to see the result.
+        // (Platform-wide live-update gap flagged 2026-06-06.)
+        var anyPending = pushes.some(function (p) { return p.status !== 'verified' && p.status !== 'failed'; });
+        if (anyPending && !auditTimer) {
+          auditTimer = setInterval(load, 4000);
+        } else if (!anyPending && auditTimer) {
+          clearInterval(auditTimer); auditTimer = null;
+        }
+      }).catch(showError);
+    }
+
+    load();
+    window.addEventListener('beforeunload', function () { if (auditTimer) clearInterval(auditTimer); });
 
     document.addEventListener('click', function (e) {
       var btn = e.target.closest('button[data-action="retry"]');
       if (!btn) return;
       var id = btn.getAttribute('data-id');
       btn.disabled = true;
-      api.retryPush(id).then(function () { toast('Queued for retry.'); setTimeout(function () { window.location.reload(); }, 800); }).catch(function (e) { btn.disabled = false; showError(e); });
+      api.retryPush(id).then(function () { toast('Queued for retry.'); setTimeout(load, 800); }).catch(function (e) { btn.disabled = false; showError(e); });
     });
   }
 
@@ -591,19 +829,8 @@
 
     function refresh() {
       api.getMe().then(function (me) {
-        setText('[data-testid="license-email"]', me.email);
-        var codes = me.license.codes || 0;
-        var codeLabel = codes === 0
-          ? 'no codes redeemed yet'
-          : codes + ' code' + (codes === 1 ? '' : 's') + ' · ' + me.license.sitesAllowed + ' site' + (me.license.sitesAllowed === 1 ? '' : 's');
-        setText('[data-testid="license-tier"]', codeLabel);
-        setText('[data-testid="license-sites"]', me.license.sitesUsed + ' of ' + me.license.sitesAllowed + ' used');
-        var monthly = me.monthlyCreditsTotal || 0;
-        var resetLabel = me.nextResetAt ? formatResetDate(me.nextResetAt) : '';
-        var creditsLine = monthly === 0
-          ? me.anchorCredits + ' remaining'
-          : me.anchorCredits + ' of ' + monthly + ' this month' + (resetLabel ? ' · resets ' + resetLabel : '');
-        setText('[data-testid="license-credits"]', creditsLine);
+        setText('[data-testid="account-email"]', me.email);
+        setText('[data-testid="account-sites"]', (me.sitesConnected || 0) + ' site' + (me.sitesConnected === 1 ? '' : 's') + ' connected');
         setText('[data-testid="openai-state"]', me.byok.openai ? '· key on file' : '');
         setText('[data-testid="anthropic-state"]', me.byok.anthropic ? '· key on file' : '');
         var digestCheckbox = $('[data-testid="digest-opt-in"]');
@@ -611,11 +838,6 @@
       }).catch(showError);
     }
 
-    function formatResetDate(ms) {
-      var d = new Date(ms);
-      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return months[d.getUTCMonth()] + ' ' + d.getUTCDate();
-    }
     refresh();
 
     // Site/GSC integrations panel.
@@ -708,11 +930,260 @@
     }).catch(showError);
   }
 
+  // ─── quick wins (the guided spine) ─────────────────────────────────────
+  // One orphan at a time. We show the user's OWN paragraph with the existing
+  // phrase we'd wrap highlighted in place — the value prop made visible: we
+  // link your words, we never write new ones. One primary action: Link it.
+  function pageQuickWins() {
+    var els = {
+      loading: $('[data-testid="qw-loading"]'),
+      card: $('[data-testid="qw-card"]'),
+      done: $('[data-testid="qw-done"]'),
+      nosite: $('[data-testid="qw-nosite"]'),
+      count: $('[data-testid="qw-count"]'),
+      dots: $('[data-testid="qw-dots"]'),
+      orphanTitle: $('[data-testid="qw-orphan-title"]'),
+      orphanView: $('[data-testid="qw-orphan-view"]'),
+      sourceTitle: $('[data-testid="qw-source-title"]'),
+      para: $('[data-testid="qw-paragraph"]'),
+      error: $('[data-testid="qw-error"]'),
+      linkBtn: $('[data-testid="qw-link"]'),
+      pickwrap: $('[data-testid="qw-pickwrap"]'),
+      pickbody: $('[data-testid="qw-pickbody"]'),
+      pickerr: $('[data-testid="qw-pickerr"]'),
+    };
+    if (!els.card) return;
+
+    var state = { siteId: null, siteUrl: '', orphans: [], idx: 0, cands: [], candIdx: 0 };
+
+    function show(which) {
+      [els.loading, els.card, els.done, els.nosite].forEach(function (e) { if (e) e.hidden = true; });
+      if (which) which.hidden = false;
+    }
+    function liveUrlOf(slug) { try { return new URL(slug, state.siteUrl).toString(); } catch (e) { return null; } }
+    function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+    // Whitespace-flexible highlight of the matched phrase inside the paragraph.
+    // We escape first (XSS-safe), then build a tolerant regex from the escaped
+    // tokens so a newline/double-space in the source still matches.
+    function highlight(paragraph, phrase) {
+      var safe = escape(paragraph || '');
+      if (!phrase) return safe;
+      var tokens = String(phrase).trim().split(/\s+/).map(function (t) { return escapeRegex(escape(t)); });
+      if (!tokens.length || !tokens[0]) return safe;
+      try {
+        var re = new RegExp(tokens.join('\\s+'), 'i');
+        return safe.replace(re, function (m) { return '<mark>' + m + '</mark>'; });
+      } catch (e) { return safe; }
+    }
+    // Extract the sentence around a phrase from a longer body (hand-pick render).
+    function snippetAround(fullText, phrase) {
+      if (!fullText) return phrase || '';
+      var lo = fullText.toLowerCase().indexOf(String(phrase || '').toLowerCase());
+      if (lo === -1) return phrase || fullText.slice(0, 240);
+      var start = fullText.lastIndexOf('.', lo); start = start === -1 ? 0 : start + 1;
+      var end = fullText.indexOf('.', lo + phrase.length); end = end === -1 ? fullText.length : end + 1;
+      return fullText.slice(start, end).trim();
+    }
+
+    function setBusy(b) { var a = els.card.querySelector('.qw__actions'); if (a) a.setAttribute('data-busy', b ? '1' : '0'); }
+    function clearError() { if (els.error) { els.error.hidden = true; els.error.textContent = ''; } }
+    function showCardError(t) { if (els.error) { els.error.textContent = t; els.error.hidden = false; } }
+
+    function renderDots() {
+      var total = state.orphans.length, idx = state.idx;
+      var win = Math.min(total, 7);
+      var start = Math.max(0, Math.min(idx - 3, total - win));
+      var html = '';
+      for (var j = start; j < start + win; j++) {
+        var cls = j < idx ? 'qw__dot--done' : (j === idx ? 'qw__dot--now' : '');
+        html += '<span class="qw__dot ' + cls + '"></span>';
+      }
+      els.dots.innerHTML = html;
+    }
+
+    function renderCard() {
+      var orphan = state.orphans[state.idx];
+      var active = state.cands[state.candIdx];
+      show(els.card);
+      clearError();
+      els.linkBtn.innerHTML = 'Link it<span class="qw__kbd">↵</span>';
+      els.linkBtn.style.color = '';
+      els.count.textContent = (state.idx + 1) + ' of ' + state.orphans.length;
+      renderDots();
+
+      var title = decodeEntities(orphan.title || orphan.slug);
+      title = title.replace(/\s+[–—-]\s+[^–—]+$/, '').trim() || title;
+      els.orphanTitle.textContent = title;
+      var href = liveUrlOf(orphan.slug);
+      if (href) els.orphanView.href = href; else els.orphanView.removeAttribute('href');
+      els.sourceTitle.textContent = decodeEntities(active.sourceTitle || active.sourceSlug || 'a related post');
+
+      if (active.needsHandpick || !active.anchorText) {
+        els.para.innerHTML = '<span class="muted">We couldn\'t find an obvious phrase to wrap automatically — pick the words to link from below.</span>';
+        els.linkBtn.disabled = true;
+        openPick();
+      } else {
+        els.linkBtn.disabled = false;
+        hidePick();
+        els.para.innerHTML = highlight(active.paragraphExcerpt, active.anchorText);
+      }
+    }
+
+    function advance() { state.idx += 1; state.candIdx = 0; loadCurrent(); }
+
+    function loadCurrent() {
+      hidePick();
+      clearError();
+      if (state.idx >= state.orphans.length) { show(els.done); return; }
+      var orphan = state.orphans[state.idx];
+      show(els.loading);
+      api.listCandidates(state.siteId, orphan.id).then(function (r) {
+        var cands = r.candidates || [];
+        if (!cands.length) { advance(); return; } // nothing to link from → next
+        // Prefer candidates that already have a ready phrase; handpick ones last.
+        cands.sort(function (a, b) { return (a.needsHandpick === b.needsHandpick) ? 0 : (a.needsHandpick ? 1 : -1); });
+        state.cands = cands;
+        state.candIdx = 0;
+        renderCard();
+      }).catch(function (e) {
+        if (e && e.status === 401) return showError(e);
+        // A single orphan failing shouldn't dead-end the stream.
+        advance();
+      });
+    }
+
+    function doLink() {
+      var active = state.cands[state.candIdx];
+      clearError();
+      setBusy(true);
+      api.push(active.id).then(function () {
+        els.linkBtn.innerHTML = 'Linked ✓';
+        els.linkBtn.style.color = 'var(--forest)';
+        setTimeout(function () { setBusy(false); advance(); }, 700);
+      }).catch(function (e) {
+        setBusy(false);
+        var code = (e && e.body && e.body.error) || (e && e.message) || 'unknown';
+        if (code === 'wp_anchor_not_found') {
+          showCardError('That phrase wasn\'t found in the live post. Pick other words to link.');
+          openPick();
+        } else {
+          var msg = window.rectoErrors.describe(code);
+          showCardError(msg.what + ' ' + msg.fix);
+        }
+      });
+    }
+
+    function differentPage() {
+      clearError();
+      if (state.candIdx + 1 < state.cands.length) {
+        state.candIdx += 1;
+        renderCard();
+        return;
+      }
+      // No other source page — re-roll a phrase on the current candidate.
+      var active = state.cands[state.candIdx];
+      setBusy(true);
+      api.regenerateAnchor(active.id).then(function (r) {
+        active.anchorText = r.anchorText;
+        if (r.paragraphExcerpt) active.paragraphExcerpt = r.paragraphExcerpt;
+        active.needsHandpick = !!r.needsHandpick;
+        setBusy(false);
+        renderCard();
+      }).catch(function (e) { setBusy(false); showError(e); });
+    }
+
+    function openPick() {
+      if (els.error) els.error.hidden = true;
+      els.pickwrap.hidden = false;
+      els.pickerr.textContent = '';
+      var active = state.cands[state.candIdx];
+      els.pickbody.textContent = 'Loading the post…';
+      api.getSource(active.id).then(function (r) {
+        els.pickbody.textContent = (r.sentences || []).join(' ') || 'No readable text in this post.';
+      }).catch(function () { els.pickbody.textContent = 'Could not load the source post.'; });
+    }
+    function hidePick() { if (els.pickwrap) els.pickwrap.hidden = true; }
+
+    function useSelection() {
+      var active = state.cands[state.candIdx];
+      var sel = window.getSelection ? String(window.getSelection()) : '';
+      sel = sel.replace(/\s+/g, ' ').trim();
+      if (!sel) { els.pickerr.textContent = 'Highlight the words you want to link first.'; return; }
+      if (sel.split(' ').length > 12) { els.pickerr.textContent = 'Pick a shorter phrase — a few words works best.'; return; }
+      els.pickerr.textContent = '';
+      api.setAnchor(active.id, sel).then(function (r) {
+        active.anchorText = r.anchorText;
+        active.needsHandpick = false;
+        hidePick();
+        els.linkBtn.disabled = false;
+        var base = active.paragraphExcerpt && active.paragraphExcerpt.toLowerCase().indexOf(r.anchorText.toLowerCase()) !== -1
+          ? active.paragraphExcerpt
+          : snippetAround(els.pickbody.textContent || '', r.anchorText);
+        els.para.innerHTML = highlight(base, r.anchorText);
+      }).catch(function (e) {
+        var code = (e && e.body && e.body.error) || (e && e.message);
+        if (code === 'anchor_not_in_source') {
+          els.pickerr.textContent = 'Those exact words aren\'t in the post — select text directly from the passage above.';
+        } else {
+          var m = window.rectoErrors.describe(code);
+          els.pickerr.textContent = m.what + ' ' + m.fix;
+        }
+      });
+    }
+
+    function onAction(action) {
+      if (action === 'link') return doLink();
+      if (action === 'skip') return advance();
+      if (action === 'different') return differentPage();
+      if (action === 'pick') return openPick();
+      if (action === 'pick-cancel') return hidePick();
+      if (action === 'use-selection') return useSelection();
+    }
+
+    els.card.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-action]');
+      if (btn) onAction(btn.getAttribute('data-action'));
+    });
+    document.addEventListener('keydown', function (e) {
+      if (els.card.hidden || !els.pickwrap.hidden) return; // not while picking text
+      var tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'Enter') { e.preventDefault(); if (!els.linkBtn.disabled) onAction('link'); }
+      else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowRight') { onAction('skip'); }
+    });
+
+    // Resolve the site (explicit ?siteId, else the user's first site).
+    var params = new URLSearchParams(window.location.search);
+    state.siteId = params.get('siteId');
+    function afterSite() {
+      api.workbenchSites().then(function (rs) {
+        var m = (rs.sites || []).find(function (s) { return s.id === state.siteId; });
+        if (m) state.siteUrl = m.url;
+      }).catch(function () { /* live-url links just won't resolve */ });
+      api.listOrphans(state.siteId, 50).then(function (r) {
+        state.orphans = r.orphans || [];
+        if (!state.orphans.length) { show(els.done); return; }
+        state.idx = 0;
+        loadCurrent();
+      }).catch(showError);
+    }
+    if (!state.siteId) {
+      api.listSites().then(function (rs) {
+        var first = (rs.sites || [])[0];
+        if (first) { state.siteId = first.id; afterSite(); }
+        else show(els.nosite);
+      }).catch(showError);
+    } else {
+      afterSite();
+    }
+  }
+
   var routes = {
     auth: pageAuth,
     'sites-new': pageSitesNew,
     crawl: pageCrawl,
     workbench: pageWorkbench,
+    'quick-wins': pageQuickWins,
     orphans: pageOrphans,
     insertion: pageInsertion,
     audit: pageAudit,

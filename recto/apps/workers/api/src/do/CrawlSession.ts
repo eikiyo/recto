@@ -63,7 +63,15 @@ export class CrawlSession implements DurableObject {
       seedUrls: string[];
     };
 
-    const trimmed = seedUrls.slice(0, MAX_URLS);
+    // Filter seeds through the SAME content gate the discovered-URL path uses in
+    // persist(). discoverSitemap() returns whatever the site's sitemap lists —
+    // WordPress/WooCommerce sitemaps routinely include archive + system routes
+    // (/category/, /author/, /tag/, /feed, /cart, attachment pages). Without this
+    // filter those got crawled, written to `pages`, and surfaced as orphan/source
+    // candidates — the exact noise persist() strips from discovered links, leaked
+    // in through the seed path. Filtering here (the single queue chokepoint) means
+    // no caller can bypass it. (Hardened 2026-06-07.)
+    const trimmed = seedUrls.filter((u) => isContentPath(u)).slice(0, MAX_URLS);
     const progress: Progress = {
       crawlId,
       siteId,
@@ -97,9 +105,18 @@ export class CrawlSession implements DurableObject {
     const body = (await req.json()) as {
       processed: { url: string; ok: boolean; slug?: string }[];
       discovered: string[];
+      unprocessed?: string[];
     };
 
-    const progress = (await this.state.storage.get<Progress>('progress'))!;
+    // Guard the state read. A persist with no progress (init never ran, or the
+    // DO was reset) must not crash on a non-null assertion → that threw, the
+    // q-crawl consumer caught it, and retried forever. Fail the tick cleanly.
+    // (Hardened 2026-06-06.)
+    const progress = await this.state.storage.get<Progress>('progress');
+    if (!progress) {
+      console.error('crawl persist: no progress state (init missing?)');
+      return Response.json({ ok: false, remaining: 0, complete: true });
+    }
     const visited = new Set((await this.state.storage.get<string[]>('visited')) ?? []);
     const queueRaw = (await this.state.storage.get<string[]>('queue')) ?? [];
 
@@ -127,11 +144,43 @@ export class CrawlSession implements DurableObject {
       progress.total++;
     }
 
+    // Return URLs the consumer pulled but couldn't finish this tick (its time
+    // budget ran out) to the FRONT of the queue so they're retried next tick
+    // instead of being silently dropped. These were already counted in
+    // progress.total when first enqueued — do NOT bump it again. (Hardened
+    // 2026-06-07.)
+    for (const u of body.unprocessed ?? []) {
+      if (visited.has(u) || queueSet.has(u)) continue;
+      queueRaw.unshift(u);
+      queueSet.add(u);
+    }
+
     progress.complete = queueRaw.length === 0;
 
-    await this.state.storage.put('progress', progress);
-    await this.state.storage.put('queue', queueRaw);
-    await this.state.storage.put('visited', [...visited]);
+    // DO storage caps each value at 128 KiB. On a very large site the queue /
+    // visited arrays can exceed that and storage.put() throws — previously
+    // unhandled, so the tick threw and the consumer retried forever. Catch it,
+    // end the crawl gracefully with whatever was gathered, and log loudly so the
+    // size ceiling is visible (chunked storage is the follow-up for 10k-page
+    // sites). (Hardened 2026-06-06.)
+    try {
+      await this.state.storage.put('progress', progress);
+      await this.state.storage.put('queue', queueRaw);
+      await this.state.storage.put('visited', [...visited]);
+    } catch (e) {
+      console.error('crawl persist: storage.put failed — ending crawl early', {
+        crawlId: progress.crawlId,
+        queue: queueRaw.length,
+        visited: visited.size,
+        error: (e as Error).message,
+      });
+      progress.complete = true;
+      try {
+        await this.state.storage.put('progress', progress);
+      } catch { /* progress is small; if even this fails, the consumer finalizes on complete */ }
+      await this.broadcast(progress);
+      return Response.json({ ok: false, remaining: 0, complete: true });
+    }
 
     await this.broadcast(progress);
 
@@ -142,7 +191,15 @@ export class CrawlSession implements DurableObject {
 
   private async stateResponse(): Promise<Response> {
     const progress = await this.state.storage.get<Progress>('progress');
-    return Response.json(progress ?? null);
+    // NEVER return bare null. A poll that resolves to null made the client's
+    // render(null) throw, which the poller swallowed — freezing the progress
+    // page on "Starting…/Waiting for the first page" forever. Return a
+    // renderable, explicitly-pending shape so the UI can always show legible
+    // state. (Caught 2026-06-06: frozen crawl progress.)
+    if (!progress) {
+      return Response.json({ crawlId: '', total: 0, done: 0, currentSlug: '', complete: false, pending: true });
+    }
+    return Response.json(progress);
   }
 
   // ────────────────────────────────────────────────────────────────────────

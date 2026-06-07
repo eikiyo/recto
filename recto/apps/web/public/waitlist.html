@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Waitlist — recto</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="recto opens new sites in cohorts so every first read finishes in days, not weeks. Hold a seat for the next batch.">
+<meta name="description" content="The hosted version of recto — orphan-page rescue and internal linking, nothing to install. Join the waitlist for early access and founding pricing.">
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,8 +100,8 @@
 
   <section class="hero">
     <div class="container container--marketing">
-      <h1 class="hero__phrase">We're opening up access in batches.<br><span class="hero__phrase-counter">Sign up to hold a seat.</span></h1>
-      <p class="hero__lede">We open new sites in cohorts so every first read finishes in days, not weeks. Leave your name; we write when the next batch opens.</p>
+      <h1 class="hero__phrase">The hosted version is almost ready.<br><span class="hero__phrase-counter">Be first through the door.</span></h1>
+      <p class="hero__lede">recto finds the orphan pages quietly bleeding your Search Console traffic and shows you the exact paragraph that should link to them. The hosted version — nothing to install, we run it for you — opens to a first group soon. Leave your email and you're in it.</p>
 
       <form class="wl-form" id="wl-form" novalidate aria-label="Waitlist signup">
         <div class="field">
@@ -115,11 +115,11 @@
         <button class="btn btn--primary btn--lg" type="submit" data-testid="wl-submit">Hold a seat</button>
       </form>
 
-      <p class="wl-meta" id="wl-meta">One email when the cohort opens. No newsletter. <a href="/privacy.html">Privacy</a>.</p>
+      <p class="wl-meta" id="wl-meta">One email when it opens, plus founding pricing for the first group. No newsletter, no noise. <a href="/privacy.html">Privacy</a>.</p>
 
       <div class="wl-held" id="wl-held" hidden>
         <h2>Held.</h2>
-        <p>We'll write to <span id="wl-held-email" class="mono"></span> when the next batch opens. Usually two to three weeks between cohorts.</p>
+        <p>We'll write to <span id="wl-held-email" class="mono"></span> the day hosted recto opens — with founding pricing for this first group. That's the only email you'll get.</p>
       </div>
     </div>
   </section>
@@ -190,7 +190,7 @@
         var heldH = held.querySelector('h2');
         var heldP = held.querySelector('p');
         if (heldH) heldH.textContent = 'Already on the list.';
-        if (heldP) heldP.innerHTML = "We'll write to <span class=\"mono\">" + email.replace(/[<>&]/g, '') + "</span> when the next batch opens. Usually two to three weeks between cohorts.";
+        if (heldP) heldP.innerHTML = "We'll write to <span class=\"mono\">" + email.replace(/[<>&]/g, '') + "</span> the day hosted recto opens, with founding pricing for the first group.";
       }
       form.hidden = true;
       meta.hidden = true;

@@ -47,14 +47,11 @@ for i in $(seq 1 40); do
   if [ "$i" = 40 ]; then tail -40 "$LOG"; exit 1; fi
 done
 
-# ── Seed two users + licenses ─────────────────────────────────────────
-step "Seed users A (tier 1, cap 1 site) and B (tier 2, cap 3 sites)"
+# ── Seed two users (self-hosted: no licenses, no caps) ─────────────────
+step "Seed users A and B"
 ( cd "$API" && pnpm wrangler d1 execute recto --local --persist-to .miniflare --command \
   "INSERT INTO users (id, email, created_at, digest_opt_in) VALUES ('user-A','a@example.com', strftime('%s','now')*1000, 1); \
-   INSERT INTO licenses (id, user_id, appsumo_code, tier, redeemed_at) VALUES ('lic-A','user-A','CODE-A',1, strftime('%s','now')*1000); \
-   INSERT INTO users (id, email, created_at, digest_opt_in) VALUES ('user-B','b@example.com', strftime('%s','now')*1000, 1); \
-   INSERT INTO licenses (id, user_id, appsumo_code, tier, redeemed_at) VALUES ('lic-B','user-B','CODE-B',2, strftime('%s','now')*1000); \
-   UPDATE users SET anchor_credits=100 WHERE id IN ('user-A','user-B');" >/dev/null 2>&1 )
+   INSERT INTO users (id, email, created_at, digest_opt_in) VALUES ('user-B','b@example.com', strftime('%s','now')*1000, 1);" >/dev/null 2>&1 )
 ok "seeded"
 
 login() {
@@ -89,16 +86,16 @@ assert_neq "replayed token rejected" "$S2" "302"
 # ── SITES + SCOPE ────────────────────────────────────────────────────
 step "Sites + cross-user isolation"
 
-# A creates 1 site (tier 1 cap=1)
+# A creates a site.
 SITE_A=$(curl -fsS -b "$USER_A_COOKIES" -X POST "$BASE/api/sites" -H 'Content-Type: application/json' \
   -d '{"url":"https://a.com","cms":"wordpress","wp_username":"u","wp_app_password":"a b c d e f"}' | jq -r '.id')
 assert_ne "A site created" "$SITE_A" "null"
 assert_ne "A site id non-empty" "$SITE_A" ""
 
-# A tries a 2nd site — tier cap blocks.
-CAP=$(status -b "$USER_A_COOKIES" -X POST "$BASE/api/sites" -H 'Content-Type: application/json' \
-  -d '{"url":"https://a2.com","cms":"wordpress","wp_username":"u","wp_app_password":"a b c d e f"}')
-assert_eq "A second site = 403 tier cap" "$CAP" "403"
+# Self-hosted is unlimited — a 2nd site must succeed (no cap).
+SITE_A2=$(curl -fsS -b "$USER_A_COOKIES" -X POST "$BASE/api/sites" -H 'Content-Type: application/json' \
+  -d '{"url":"https://a2.com","cms":"wordpress","wp_username":"u","wp_app_password":"a b c d e f"}' | jq -r '.id')
+assert_ne "A second site created (unlimited)" "$SITE_A2" "null"
 
 # B reads A's site — must return 404 (not exists in their scope).
 SCOPE=$(status -b "$USER_B_COOKIES" "$BASE/api/sites/$SITE_A/orphans")
@@ -108,7 +105,7 @@ assert_eq "B reading A's orphans = 404" "$SCOPE" "404"
 B_SITES_COUNT=$(curl -fsS -b "$USER_B_COOKIES" "$BASE/api/sites" | jq '.sites | length')
 assert_eq "B sees 0 sites" "$B_SITES_COUNT" "0"
 
-# Duplicate connect returns 409 (run on user B who has tier 2 capacity).
+# Duplicate connect returns 409.
 SITE_B=$(curl -fsS -b "$USER_B_COOKIES" -X POST "$BASE/api/sites" -H 'Content-Type: application/json' \
   -d '{"url":"https://b.com","cms":"wordpress","wp_username":"u","wp_app_password":"a b c d e f"}' | jq -r '.id')
 assert_ne "B site created" "$SITE_B" "null"
@@ -116,34 +113,6 @@ assert_ne "B site created" "$SITE_B" "null"
 DUPE=$(status -b "$USER_B_COOKIES" -X POST "$BASE/api/sites" -H 'Content-Type: application/json' \
   -d '{"url":"https://b.com","cms":"wordpress","wp_username":"u","wp_app_password":"a b c d e f"}')
 assert_eq "B duplicate site = 409 (not 500)" "$DUPE" "409"
-
-# ── APPSUMO WEBHOOK ──────────────────────────────────────────────────
-step "AppSumo webhook signature verification + replay"
-
-# Compute expected signature for an activate event. Secret from .dev.vars:
-WEBHOOK_SECRET=$(grep '^APPSUMO_WEBHOOK_SECRET=' "$API/.dev.vars" | sed 's/.*="\(.*\)"/\1/')
-
-EV1='{"event":"activate","event_id":"evt-1","email":"newuser@example.com","appsumo_code":"NEW-CODE-1","tier":2}'
-SIG=$(node -e "
-  const c = require('crypto');
-  const s = process.argv[1]; const b = process.argv[2];
-  const sig = c.createHmac('sha256', s).update(b).digest('base64url');
-  process.stdout.write(sig);
-" "$WEBHOOK_SECRET" "$EV1")
-
-WS_OK=$(status -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'Content-Type: application/json' -H "x-appsumo-signature: $SIG" -d "$EV1")
-assert_eq "valid signature accepted" "$WS_OK" "200"
-
-WS_BAD=$(status -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'Content-Type: application/json' -H "x-appsumo-signature: wrong" -d "$EV1")
-assert_eq "bad signature rejected 401" "$WS_BAD" "401"
-
-WS_MISSING=$(status -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'Content-Type: application/json' -d "$EV1")
-assert_eq "missing signature rejected 401" "$WS_MISSING" "401"
-
-# Replay protection — same event_id should dedupe (still 200 but flagged).
-DEDUPED=$(curl -fsS -X POST "$BASE/api/webhooks/appsumo/webhook" -H 'Content-Type: application/json' \
-  -H "x-appsumo-signature: $SIG" -d "$EV1" | jq -r '.deduped // false')
-assert_eq "replay deduped" "$DEDUPED" "true"
 
 # ── ERROR MESSAGES ───────────────────────────────────────────────────
 step "Error catalog"

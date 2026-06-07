@@ -28,7 +28,6 @@ function seedEnv() {
   const fill = {
     RECTO_KEK: randomBytes(32).toString('base64'),
     MAGIC_LINK_SECRET: randomBytes(32).toString('hex'),
-    APPSUMO_WEBHOOK_SECRET: randomBytes(16).toString('hex'),
   };
   for (const [k, v] of Object.entries(fill)) {
     body = body.replace(new RegExp(`^${k}=.*$`, 'm'), `${k}="${v}"`);

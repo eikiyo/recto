@@ -9,6 +9,7 @@ import {
   listProperties,
   type GscProperty,
 } from '../integrations/gsc';
+import { invalidateGscTokenCache } from '../lib/gsc-token';
 
 export const gscRouter = new Hono<{ Bindings: Env; Variables: AuthVars }>();
 
@@ -115,6 +116,8 @@ gscOauthRouter.get('/callback', requireSession, async (c) => {
   await c.env.DB.prepare('UPDATE sites SET gsc_refresh_token = ? WHERE id = ?')
     .bind(encrypted, state.siteId)
     .run();
+  // New connection → drop any access token cached against a prior token.
+  await invalidateGscTokenCache(c.env, state.siteId);
 
   // Route to property picker.
   return c.redirect(
@@ -159,6 +162,7 @@ gscRouter.get('/properties', requireSession, async (c) => {
       await c.env.DB.prepare('UPDATE sites SET gsc_refresh_token = NULL WHERE id = ?')
         .bind(siteId)
         .run();
+      await invalidateGscTokenCache(c.env, siteId);
       return c.json({ error: 'gsc_reauth_required' }, 409);
     }
     return c.json({ error: 'gsc_refresh_failed', detail: msg.slice(0, 200) }, 502);
@@ -192,6 +196,8 @@ gscRouter.post('/select', requireSession, async (c) => {
   await c.env.DB.prepare('UPDATE sites SET gsc_property = ? WHERE id = ?')
     .bind(property, siteId)
     .run();
+  // Property changed → the cached token's property field is now stale.
+  await invalidateGscTokenCache(c.env, siteId);
 
   // Enqueue 90-day backfill. The consumer (D2.3) fans out one message per day.
   await c.env.Q_GSC_BACKFILL.send({ siteId, kind: 'backfill', daysBack: 90 });
@@ -216,6 +222,7 @@ gscRouter.delete('/disconnect', requireSession, async (c) => {
     .run();
   const changes = (result.meta as { changes?: number } | undefined)?.changes ?? 0;
   if (changes === 0) return c.json({ error: 'not_found' }, 404);
+  await invalidateGscTokenCache(c.env, siteId);
   return c.json({ ok: true });
 });
 

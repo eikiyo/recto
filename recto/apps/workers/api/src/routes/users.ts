@@ -1,6 +1,6 @@
-// /api/users/me — profile, license, and BYOK key management.
+// /api/users/me — profile and BYOK key management.
 //
-// GET  /api/users/me              → email, name, onboarded, license, anchor_credits, byok presence, digest opt-in.
+// GET  /api/users/me              → email, name, onboarded, byok presence, digest opt-in.
 // PUT  /api/users/me              → update byok_openai_key, byok_anthropic_key, digest_opt_in.
 // POST /api/users/onboard         → first-time onboarding: capture name (and optional pending website).
 // DEL  /api/users/me/byok/:vendor → remove a stored key.
@@ -12,7 +12,6 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { requireSession, type AuthVars } from '../auth/middleware';
 import { encrypt } from '../lib/crypto';
-import { ANCHOR_CREDITS_PER_CODE_MONTHLY, SITE_CAP_PER_CODE } from '@recto/shared';
 
 export const usersRouter = new Hono<{ Bindings: Env; Variables: AuthVars }>();
 usersRouter.use('*', requireSession);
@@ -20,7 +19,7 @@ usersRouter.use('*', requireSession);
 usersRouter.get('/me', async (c) => {
   const userId = c.get('userId');
   const u = await c.env.DB.prepare(
-    `SELECT id, email, name, created_at, last_login_at, onboarded_at, anchor_credits,
+    `SELECT id, email, name, created_at, last_login_at, onboarded_at,
             byok_openai_key, byok_anthropic_key, digest_opt_in
        FROM users WHERE id = ?`
   )
@@ -32,31 +31,15 @@ usersRouter.get('/me', async (c) => {
       created_at: number;
       last_login_at: number | null;
       onboarded_at: number | null;
-      anchor_credits: number;
       byok_openai_key: ArrayBuffer | null;
       byok_anthropic_key: ArrayBuffer | null;
       digest_opt_in: number;
     }>();
   if (!u) return c.json({ error: 'not_found' }, 404);
 
-  // Active code count = number of non-refunded licenses. 1 code = 1 site +
-  // 100 credits/month. No tier system.
-  const lic = await c.env.DB.prepare(
-    `SELECT COUNT(*) AS codes, MIN(redeemed_at) AS first_redeemed
-       FROM licenses
-      WHERE user_id = ? AND refunded_at IS NULL`
-  )
-    .bind(userId)
-    .first<{ codes: number; first_redeemed: number | null }>();
-
   const siteCount = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM sites WHERE user_id = ?')
     .bind(userId)
     .first<{ n: number }>();
-
-  const codes = lic?.codes ?? 0;
-  const sitesAllowed = codes * SITE_CAP_PER_CODE;
-  const monthlyCreditsTotal = codes * ANCHOR_CREDITS_PER_CODE_MONTHLY;
-  const nextResetAt = firstOfNextMonthUTC();
 
   return c.json({
     id: u.id,
@@ -66,19 +49,11 @@ usersRouter.get('/me', async (c) => {
     lastLoginAt: u.last_login_at,
     onboarded: u.onboarded_at != null,
     onboardedAt: u.onboarded_at,
-    anchorCredits: u.anchor_credits,
-    monthlyCreditsTotal,
-    nextResetAt,
+    sitesConnected: siteCount?.n ?? 0,
     digestOptIn: !!u.digest_opt_in,
     byok: {
       openai: !!u.byok_openai_key,
       anthropic: !!u.byok_anthropic_key,
-    },
-    license: {
-      codes,
-      firstRedeemedAt: lic?.first_redeemed ?? null,
-      sitesUsed: siteCount?.n ?? 0,
-      sitesAllowed,
     },
   });
 });
@@ -126,11 +101,6 @@ usersRouter.post('/onboard', async (c) => {
 
   return c.json({ ok: true, name, website });
 });
-
-function firstOfNextMonthUTC(): number {
-  const now = new Date();
-  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0);
-}
 
 type PutBody = {
   byokOpenaiKey?: string | null;

@@ -38,7 +38,7 @@ That is the only API recto uses. **Do not** enable Search Indexing, Webmaster, o
 11. Test users: add your own Google account and 2-3 friendly testers.
 12. Save.
 
-The app stays in **Testing** mode until you submit for verification. In Testing mode each Google account that authorizes recto must be on the Test Users list. **You do not need verification for the AppSumo launch** — Google requires verification only when more than ~100 accounts have authorized. By cohort 2 you will need to submit; budget a week for Google review.
+The app stays in **Testing** mode until you submit for verification. In Testing mode each Google account that authorizes recto must be on the Test Users list. For a self-hosted instance with a handful of users, Testing mode is usually all you need — Google requires verification only once more than ~100 accounts have authorized. If you cross that, submit for verification and budget about a week for Google's review.
 
 ## 4. Create the OAuth client
 

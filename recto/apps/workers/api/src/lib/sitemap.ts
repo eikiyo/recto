@@ -4,10 +4,13 @@
 // We do NOT parse with a full XML library. Sitemaps are well-defined; regex
 // is sufficient and avoids pulling in a dependency.
 
-import { normalizeUrl } from './url-norm';
+import { normalizeUrl, sameOrigin } from './url-norm';
+import { fetchWithTimeout, readTextCapped } from './http';
 
 const URL_RE = /<loc>([^<]+)<\/loc>/g;
 const MAX_SITEMAPS = 25;
+const SITEMAP_TIMEOUT_MS = 8_000;     // an untrusted sitemap host can't hang the crawl
+const SITEMAP_MAX_BYTES = 5_000_000;  // 5 MB cap — a huge sitemap can't OOM the Worker
 
 export type SitemapResult = {
   source: 'sitemap' | 'fallback';
@@ -23,7 +26,12 @@ export async function discoverSitemap(siteUrl: string): Promise<SitemapResult> {
   for (const u of candidates) {
     const urls = await fetchSitemapTree(u, 0);
     if (urls.length > 0) {
-      return { source: 'sitemap', urls };
+      // Only ever seed the site's OWN pages. Sitemaps (and especially sitemap
+      // indexes pointing at a CDN or a linked domain) can list cross-origin
+      // URLs; crawling those would pollute the pages table with off-site
+      // content and break orphan detection. (Hardened 2026-06-06.)
+      const sameSite = urls.filter((u2) => sameOrigin(u2, siteUrl));
+      if (sameSite.length > 0) return { source: 'sitemap', urls: sameSite };
     }
   }
   // Fallback: caller will BFS from the homepage.
@@ -34,11 +42,13 @@ async function fetchSitemapTree(url: string, depth: number): Promise<string[]> {
   if (depth > 2) return []; // sitemap index of index of index — very unusual
   let body: string;
   try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'recto-crawler/1.0 (+https://recto.so)' },
-    });
+    const res = await fetchWithTimeout(
+      url,
+      { headers: { 'User-Agent': 'recto-crawler/1.0 (+https://recto.so)' } },
+      SITEMAP_TIMEOUT_MS
+    );
     if (!res.ok) return [];
-    body = await res.text();
+    body = await readTextCapped(res, SITEMAP_MAX_BYTES);
   } catch {
     return [];
   }

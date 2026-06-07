@@ -8,12 +8,11 @@
 //     and renders + sends.
 
 import type { Env } from '../env';
-import { renderWelcome } from '../emails/welcome';
+import { retryOrDrop } from '../lib/queue';
 import { renderCrawlComplete } from '../emails/crawl-complete';
 import { renderWeeklyDigest } from '../emails/weekly-digest';
+// (tier-upgrade + byok-threshold templates removed — no billing/credits in OSS)
 import { renderMagicLink } from '../emails/magic-link';
-import { renderTierUpgrade } from '../emails/tier-upgrade';
-import { renderByokThreshold } from '../emails/byok-threshold';
 
 const FROM = 'recto <hello@rectoapp.com>';
 const REPLY_TO = 'hello@rectoapp.com';
@@ -126,14 +125,18 @@ async function postResend(apiKey: string, to: string, subject: string, text: str
   if (!res.ok) throw new Error(`resend_${res.status}_${(await res.text()).slice(0, 200)}`);
 }
 
+const MAX_EMAIL_DELIVERIES = 4; // bound retries when every transport is down
+
 export async function handleEmailBatch(batch: MessageBatch<EmailMsg>, env: Env): Promise<void> {
   for (const msg of batch.messages) {
     try {
       await sendTemplated(env, msg.body);
       msg.ack();
     } catch (e) {
-      console.error('email error', { template: msg.body.template, error: (e as Error).message });
-      msg.retry({ delaySeconds: 60 });
+      // Bounded retry — if all three transports stay down, drop after a few
+      // attempts with a loud log instead of retrying a transactional email for
+      // days (the silent ~100-delivery platform default). (Hardened 2026-06-06.)
+      retryOrDrop(msg, 'email', { template: msg.body.template, userId: msg.body.userId, error: (e as Error).message }, MAX_EMAIL_DELIVERIES, 60);
     }
   }
 }
@@ -188,12 +191,9 @@ async function postMailChannels(to: string, subject: string, text: string, html:
 
 function render(template: string, data: Record<string, unknown>): { subject: string; text: string; html: string } | null {
   switch (template) {
-    case 'welcome':            return renderWelcome(data);
     case 'crawl-complete':     return renderCrawlComplete(data);
     case 'weekly-digest':      return renderWeeklyDigest(data);
     case 'magic-link':         return renderMagicLink(data);
-    case 'tier-upgrade':       return renderTierUpgrade(data);
-    case 'byok-threshold':     return renderByokThreshold(data);
     default:                   return null;
   }
 }

@@ -76,14 +76,12 @@ for i in $(seq 1 40); do
   fi
 done
 
-# ── Seed a license so /api/sites POST won't be blocked by tier cap ──────
-step "Seed test license via direct D1 write"
+# ── Seed a test user (self-hosted: no license, no site cap) ─────────────
+step "Seed test user via direct D1 write"
 ( cd "$API" && pnpm wrangler d1 execute recto --local --persist-to .miniflare --command \
-  "INSERT INTO users (id, email, created_at, digest_opt_in) VALUES ('test-user-01', 'smoke@example.com', strftime('%s','now')*1000, 1) ON CONFLICT DO NOTHING; \
-   INSERT INTO licenses (id, user_id, appsumo_code, tier, redeemed_at) VALUES ('test-lic-01', 'test-user-01', 'SMOKE-CODE-001', 2, strftime('%s','now')*1000) ON CONFLICT DO NOTHING; \
-   UPDATE users SET anchor_credits = 100 WHERE id = 'test-user-01';" \
+  "INSERT INTO users (id, email, created_at, digest_opt_in) VALUES ('test-user-01', 'smoke@example.com', strftime('%s','now')*1000, 1) ON CONFLICT DO NOTHING;" \
   >/dev/null 2>&1 ) || fail "seed failed"
-ok "license seeded"
+ok "user seeded"
 
 step "Magic link request"
 MAGIC=$(curl -fsS -c "$COOKIES" -X POST "$BASE/api/auth/magic" \

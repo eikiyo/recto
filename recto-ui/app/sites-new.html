@@ -76,12 +76,5 @@
 <script src="/scripts/app-shell.js"></script>
 <script src="/scripts/api.js"></script>
 <script src="/scripts/pages.js"></script>
-<script>
-  // CSS radio selection helper — visual only. Real submit is wired in pages.js.
-  document.querySelectorAll('input[name="cms"]').forEach(r => r.addEventListener('change', e => {
-    document.querySelectorAll('.radio').forEach(l => l.classList.remove('radio--selected'));
-    e.target.closest('.radio').classList.add('radio--selected');
-  }));
-</script>
 </body>
 </html>

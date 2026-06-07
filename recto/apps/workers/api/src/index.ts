@@ -15,31 +15,18 @@ import { handleVerifyBatch } from './jobs/verify';
 import { handleEmailBatch, type EmailMsg } from './integrations/mail';
 import { pushesRouter } from './routes/pushes';
 import { candidatesRouter, regenerateAnchorRouter } from './routes/candidates';
-import { appsumoRouter } from './routes/appsumo';
 import { errorsRouter } from './routes/errors';
 import { usersRouter } from './routes/users';
 import { waitlistRouter } from './routes/waitlist';
+import { originAllowed } from './lib/cors';
 
 const app = new Hono<{ Bindings: Env }>();
 
 // Cross-route headers + minimal logging. No PII surfaced.
 // CORS: same-origin in prod (recto.so + api.recto.so share a base domain
 // so cookies cross subdomains); explicit cross-origin allow in dev so the
-// SPA on :8765 can talk to the API on :8787.
-const ALLOWED_ORIGINS = new Set([
-  'http://localhost:8765',
-  'http://127.0.0.1:8765',
-  'https://rectoapp.com',
-  'https://www.rectoapp.com',
-]);
-function originAllowed(o: string | undefined): boolean {
-  if (!o) return false;
-  if (ALLOWED_ORIGINS.has(o)) return true;
-  // Pages preview deploys live at *.pages.dev — allow any subdomain of the
-  // recto Pages project so previews can talk to api.rectoapp.com / workers.dev.
-  return /^https:\/\/[a-z0-9-]+\.recto-ui\.pages\.dev$/.test(o)
-    || o === 'https://recto-ui.pages.dev';
-}
+// SPA on :8765 can talk to the API on :8787. The allow-list + originAllowed
+// live in ./lib/cors so streamed responses (SSE) can re-apply CORS too.
 app.use('*', async (c, next) => {
   c.header('X-Recto-Env', c.env.RECTO_ENV);
 
@@ -58,7 +45,7 @@ app.use('*', async (c, next) => {
     c.header('Access-Control-Allow-Origin', origin);
     c.header('Access-Control-Allow-Credentials', 'true');
     c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Content-Type, X-Appsumo-Signature');
+    c.header('Access-Control-Allow-Headers', 'Content-Type');
     c.header('Vary', 'Origin');
   }
   if (c.req.method === 'OPTIONS') {
@@ -69,6 +56,7 @@ app.use('*', async (c, next) => {
 
 // Rate limit /api/auth/magic — 10 requests per IP per 10 minutes in prod.
 // In dev the limit is disabled so parallel Playwright workers don't trip it.
+// eslint-disable-next-line @recto/voice/no-banned-lexicon -- "magic" is the public auth ROUTE PATH (/api/auth/magic), not user-facing copy
 app.use('/api/auth/magic', async (c, next) => {
   if (c.env.RECTO_ENV === 'dev') {
     await next();
@@ -92,7 +80,6 @@ app.route('/api/sites', orphansRouter);
 app.route('/api/pushes', pushesRouter);
 app.route('/api/sites', candidatesRouter);
 app.route('/api/candidates', regenerateAnchorRouter);
-app.route('/api/webhooks/appsumo', appsumoRouter);
 app.route('/api/errors', errorsRouter);
 app.route('/api/workbench', workbenchRouter);
 app.route('/api/gsc', gscRouter);

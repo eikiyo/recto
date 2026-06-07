@@ -29,64 +29,49 @@ function baseInput(overrides: Partial<PushInput> = {}): PushInput {
   };
 }
 
-describe('insertLink', () => {
-  it('inserts after the verbatim marker when present', () => {
+describe('insertLink — wrap an existing phrase (new signature)', () => {
+  // insertLink(original, anchorPhrase, href, scopeHint?)
+  it('wraps the existing phrase in place', () => {
     const out = insertLink(
       '<p>before the marker text and the rest</p>',
-      'the marker text',
-      'related thinking',
+      'marker text',
       'https://example.com/orphan'
     );
     expect(out.alreadyLinked).toBe(false);
-    expect(out.via).toBe('marker');
+    expect(out.via).toBe('wrap');
     expect(out.content).toContain('data-recto-link="1"');
-    expect(out.content).toContain('>related thinking</a>');
+    expect(out.content).toContain('>marker text</a>');
   });
 
-  it('falls back to first-paragraph when marker is missing', () => {
-    const out = insertLink(
-      '<p>this body has no marker</p>\n\n<p>next paragraph</p>',
-      'absent string',
-      'anchor',
-      'https://example.com/target'
-    );
-    expect(out.markerMissing).toBeUndefined();
-    expect(out.via).toBe('first-paragraph');
-    expect(out.content).toContain('data-recto-link="1"');
-    // The injected paragraph appears between the two existing paragraphs.
-    const split = out.content.split('data-recto-link="1"');
-    expect(split.length).toBe(2);
-  });
-
-  it('flags markerMissing when there is no paragraph break at all', () => {
-    const out = insertLink(
-      'flat-string-no-paragraphs-at-all',
-      'absent',
-      'anchor',
-      'https://example.com/target'
-    );
-    expect(out.markerMissing).toBe(true);
-    expect(out.content).toBe('flat-string-no-paragraphs-at-all');
+  it('flags phraseNotFound and leaves the body untouched when the phrase is absent', () => {
+    const body = '<p>this body has no such phrase</p>\n\n<p>next paragraph</p>';
+    const out = insertLink(body, 'absent string here', 'https://example.com/target');
+    expect(out.phraseNotFound).toBe(true);
+    expect(out.content).toBe(body);
   });
 
   it('refuses duplicate insertion when an identical href is already in the body', () => {
     const out = insertLink(
       '<p>already <a href="https://example.com/orphan">linked</a></p>',
-      'whatever',
-      'anchor',
+      'already',
       'https://example.com/orphan'
     );
     expect(out.alreadyLinked).toBe(true);
   });
 
-  it('refuses duplicate insertion when a previous recto marker is present', () => {
+  it('allows a DIFFERENT-target link in a post that already holds a recto marker (hub → many orphans)', () => {
+    // Previously the bare data-recto-link marker short-circuited ANY second
+    // insertion; a hub post could link exactly one orphan. Idempotency is keyed
+    // on the specific target href, so a new target must be inserted.
     const out = insertLink(
       '<p>earlier <a data-recto-link="1" href="https://example.com/other">link</a></p>',
-      'whatever',
-      'anchor',
+      'earlier',
       'https://example.com/target'
     );
-    expect(out.alreadyLinked).toBe(true);
+    expect(out.alreadyLinked).toBe(false);
+    expect(out.phraseNotFound).toBeFalsy();
+    expect(out.content).toContain('href="https://example.com/target"');
+    expect(out.content).toContain('href="https://example.com/other"');
   });
 });
 
@@ -141,9 +126,10 @@ describe('pushLink — failure-code classification', () => {
     expect(r.code).toBe('wp_network');
   });
 
-  it('wp_already_linked when a previous recto anchor is present', async () => {
-    const existing = '<p>body <a data-recto-link="1" href="https://example.com/other">x</a></p>';
-    const secret = await withFetch((u, init) => {
+  it('wp_already_linked only when THIS orphan href is already present (per-href idempotency)', () => {
+    // The post already links the SAME target (/orphan) → genuine duplicate.
+    const existing = '<p>related thinking is <a data-recto-link="1" href="https://example.com/orphan">here</a></p>';
+    return withFetch((u, init) => {
       if ((init?.method ?? 'GET') === 'GET') {
         return new Response(JSON.stringify({ id: 42, content: { raw: existing } }), {
           status: 200,
@@ -151,10 +137,30 @@ describe('pushLink — failure-code classification', () => {
         });
       }
       return new Response('', { status: 200 });
+    }).then(async (secret) => {
+      const r = await pushLink({ RECTO_KEK: KEK }, baseInput({ encryptedSecret: secret }));
+      if (r.ok) throw new Error('should have failed');
+      expect(r.code).toBe('wp_already_linked');
+    });
+  });
+
+  it('does NOT report already_linked when only a DIFFERENT orphan is linked in the post', async () => {
+    // /other is linked; we push /orphan, whose phrase IS present → it wraps and
+    // POSTs (a hub linking a second orphan). Proves the broad-marker bug is gone.
+    const existing = '<p>related thinking lives here, and <a data-recto-link="1" href="https://example.com/other">other</a> too.</p>';
+    let posted = false;
+    const secret = await withFetch((u, init) => {
+      if ((init?.method ?? 'GET') === 'GET') {
+        return new Response(JSON.stringify({ id: 42, content: { raw: existing } }), {
+          status: 200, headers: { 'content-type': 'application/json' },
+        });
+      }
+      posted = true;
+      return new Response(JSON.stringify({ id: 42 }), { status: 200, headers: { 'content-type': 'application/json' } });
     });
     const r = await pushLink({ RECTO_KEK: KEK }, baseInput({ encryptedSecret: secret }));
-    if (r.ok) throw new Error('should have failed');
-    expect(r.code).toBe('wp_already_linked');
+    expect(r.ok).toBe(true);
+    expect(posted).toBe(true);
   });
 
   it('happy path → ok with revisionId', async () => {
@@ -173,7 +179,10 @@ describe('pushLink — failure-code classification', () => {
         headers: { 'content-type': 'application/json' },
       });
     });
-    const r = await pushLink({ RECTO_KEK: KEK }, baseInput({ encryptedSecret: secret, paragraphMarker: 'first paragraph here.' }));
+    const r = await pushLink(
+      { RECTO_KEK: KEK },
+      baseInput({ encryptedSecret: secret, anchorText: 'first paragraph', paragraphMarker: 'first paragraph here.' })
+    );
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.postId).toBe(42);
   });

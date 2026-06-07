@@ -98,6 +98,20 @@ else
   ok "exists"
 fi
 
+# The site_id metadata index is REQUIRED, not optional. Candidate search runs
+# VECTORIZE.query(..., { filter: { site_id } }); a filtered query against a
+# property with NO metadata index silently returns ZERO matches — which once
+# shipped as an empty "Where to link from" for every orphan. Provisioning the
+# index above without this step reintroduces that bug on any fresh account, so
+# create it idempotently right here. (Hardened 2026-06-07.)
+step "Ensure Vectorize metadata index on site_id"
+if ! wr vectorize list-metadata-index recto-embeddings 2>/dev/null | grep -q 'site_id'; then
+  wr vectorize create-metadata-index recto-embeddings --property-name=site_id --type=string >/dev/null
+  ok "created site_id metadata index"
+else
+  ok "site_id metadata index exists"
+fi
+
 # ── 4. R2 ───────────────────────────────────────────────────────────────
 step "Provision R2 bucket 'recto-archive'"
 if ! wr r2 bucket list 2>/dev/null | grep -q 'recto-archive'; then
@@ -125,7 +139,7 @@ ok "migrations applied"
 
 # ── 7. Secrets ──────────────────────────────────────────────────────────
 step "Secrets — set any that are missing"
-declare -a NEEDED=("RECTO_KEK" "MAGIC_LINK_SECRET" "APPSUMO_WEBHOOK_SECRET" "GSC_CLIENT_ID" "GSC_CLIENT_SECRET")
+declare -a NEEDED=("RECTO_KEK" "MAGIC_LINK_SECRET" "GSC_CLIENT_ID" "GSC_CLIENT_SECRET")
 EXISTING_SECRETS=$(wr secret list --json 2>/dev/null | jq -r '.[].name' || true)
 for SEC in "${NEEDED[@]}"; do
   if echo "$EXISTING_SECRETS" | grep -q "^$SEC\$"; then
@@ -163,5 +177,4 @@ printf '\nNext steps (manual):\n'
 printf '  1. Add DNS: recto.so (Pages) + api.recto.so (Workers route)\n'
 printf '  2. Add MailChannels TXT record: _mailchannels.recto.so → "v=mc1 cfid=<your-cf-account-id>"\n'
 printf '  3. Add OAuth redirect URI in Google Cloud Console: https://api.recto.so/api/oauth/gsc/callback\n'
-printf '  4. Update AppSumo partner dashboard webhook URL: https://api.recto.so/api/webhooks/appsumo/webhook\n'
-printf '  5. Run scripts/smoke.sh against the prod base URL to verify end-to-end.\n'
+printf '  4. Run scripts/smoke.sh against the prod base URL to verify end-to-end.\n'

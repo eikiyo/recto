@@ -136,7 +136,10 @@ describe('chaos: live-page verifier under failure', () => {
     }
   });
 
-  it('after MAX_ATTEMPTS marks failed with wp_post_failed', async () => {
+  it('after MAX_ATTEMPTS an UNREACHABLE host leaves status=pushed (does NOT mark failed)', async () => {
+    // A network failure to REACH the page is not proof the link is gone — the
+    // push already succeeded ('pushed'). Marking it 'failed' would lie to the
+    // user; the daily reverify sweep re-confirms it instead. (Hardened 2026-06-07.)
     const origFetch = globalThis.fetch;
     (globalThis as any).fetch = vi.fn(async () => { throw new Error('ENOTFOUND'); });
     const runSpy = vi.fn(async () => ({ meta: { changes: 1 } }));
@@ -146,6 +149,7 @@ describe('chaos: live-page verifier under failure', () => {
           bind: () => ({
             first: async () => ({
               id: 'p1',
+              status: 'pushed',
               anchor_text: 'a',
               orphan_slug: '/o',
               source_slug: '/s',
@@ -159,8 +163,8 @@ describe('chaos: live-page verifier under failure', () => {
     });
     try {
       await handleVerifyBatch(batch({ pushId: 'p1', attempt: 3 }), env);
-      expect(env.Q_VERIFY.send).not.toHaveBeenCalled();
-      expect(runSpy).toHaveBeenCalled(); // status=failed update executed
+      expect(env.Q_VERIFY.send).not.toHaveBeenCalled(); // exhausted, no more retries
+      expect(runSpy).not.toHaveBeenCalled();             // status NOT flipped to failed
     } finally {
       (globalThis as any).fetch = origFetch;
     }
@@ -216,7 +220,7 @@ describe('chaos: mail send under MailChannels failure', () => {
           }),
         } as unknown as Env['DB'],
       });
-      const b = batch({ template: 'welcome', userId: 'u', data: { tier: 1, credits: 100 } });
+      const b = batch({ template: 'crawl-complete', userId: 'u', data: { siteUrl: 'https://example.com', pages: 10 } });
       await handleEmailBatch(b, env);
       expect((b.messages[0]!.retry as any).mock.calls.length).toBeGreaterThan(0);
     } finally {

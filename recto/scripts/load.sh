@@ -17,7 +17,7 @@ COOKIES="$(mktemp)"
 LOG="${WRANGLER_LOG:-/tmp/recto-load-wrangler.log}"
 : > "$LOG"
 PID=""
-SCENARIO="${1:-read}"   # read | write | webhook | all
+SCENARIO="${1:-read}"   # read | write | all
 
 cleanup() {
   if [ -n "$PID" ]; then kill "$PID" 2>/dev/null || true; wait "$PID" 2>/dev/null || true; fi
@@ -50,10 +50,9 @@ for i in $(seq 1 40); do
 done
 echo "worker pid=$PID up"
 
-step "Seed test user + license"
+step "Seed test user"
 ( cd "$API" && pnpm wrangler d1 execute recto --local --persist-to .miniflare --command \
-  "INSERT INTO users (id, email, created_at, digest_opt_in, anchor_credits) VALUES ('load-user','load@example.com', strftime('%s','now')*1000, 1, 100); \
-   INSERT INTO licenses (id, user_id, appsumo_code, tier, redeemed_at) VALUES ('load-lic','load-user','LOAD-CODE',3, strftime('%s','now')*1000);" >/dev/null 2>&1 )
+  "INSERT INTO users (id, email, created_at, digest_opt_in) VALUES ('load-user','load@example.com', strftime('%s','now')*1000, 1);" >/dev/null 2>&1 )
 
 step "Authenticate and grab session cookie"
 TOK=$(curl -fsS -X POST "$BASE/api/auth/magic" -H 'Content-Type: application/json' \
@@ -68,8 +67,6 @@ SITE_ID=$(curl -fsS -b "$COOKIES" -X POST "$BASE/api/sites" -H 'Content-Type: ap
   -d '{"url":"https://load.example.com","cms":"wordpress","wp_username":"u","wp_app_password":"a b c d e f"}' | jq -r '.id')
 echo "site id=$SITE_ID"
 
-WEBHOOK_SECRET=$(grep '^APPSUMO_WEBHOOK_SECRET=' "$API/.dev.vars" | sed 's/.*="\(.*\)"/\1/')
-
 # Match scenario.
 case "$SCENARIO" in
   read)
@@ -80,20 +77,14 @@ case "$SCENARIO" in
     step "k6 write burst"
     BASE="$BASE" COOKIE_HEADER="$COOKIE_HEADER" SITE_ID="$SITE_ID" k6 run "$ROOT/load/k6-write-burst.js"
     ;;
-  webhook)
-    step "k6 webhook flood"
-    BASE="$BASE" WEBHOOK_SECRET="$WEBHOOK_SECRET" k6 run "$ROOT/load/k6-webhook-flood.js"
-    ;;
   all)
     step "k6 read-heavy"
     BASE="$BASE" COOKIE_HEADER="$COOKIE_HEADER" k6 run "$ROOT/load/k6-read-heavy.js"
     step "k6 write burst"
     BASE="$BASE" COOKIE_HEADER="$COOKIE_HEADER" SITE_ID="$SITE_ID" k6 run "$ROOT/load/k6-write-burst.js"
-    step "k6 webhook flood"
-    BASE="$BASE" WEBHOOK_SECRET="$WEBHOOK_SECRET" k6 run "$ROOT/load/k6-webhook-flood.js"
     ;;
   *)
-    echo "Unknown scenario: $SCENARIO (use: read | write | webhook | all)" >&2
+    echo "Unknown scenario: $SCENARIO (use: read | write | all)" >&2
     exit 1
     ;;
 esac

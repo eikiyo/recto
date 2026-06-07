@@ -5,7 +5,6 @@ CREATE TABLE users (
   email               TEXT NOT NULL UNIQUE,
   created_at          INTEGER NOT NULL,
   last_login_at       INTEGER,
-  anchor_credits      INTEGER NOT NULL DEFAULT 0,
   byok_openai_key     BLOB,
   byok_anthropic_key  BLOB,
   digest_opt_in       INTEGER NOT NULL DEFAULT 1
@@ -25,16 +24,6 @@ CREATE TABLE magic_tokens (
   user_id     TEXT NOT NULL REFERENCES users(id),
   expires_at  INTEGER NOT NULL,
   used_at     INTEGER
-);
-
-CREATE TABLE licenses (
-  id            TEXT PRIMARY KEY,
-  user_id       TEXT NOT NULL REFERENCES users(id),
-  appsumo_code  TEXT NOT NULL UNIQUE,
-  tier          INTEGER NOT NULL,
-  redeemed_at   INTEGER NOT NULL,
-  refunded_at   INTEGER,
-  stacked_into  TEXT REFERENCES licenses(id)
 );
 
 CREATE TABLE sites (

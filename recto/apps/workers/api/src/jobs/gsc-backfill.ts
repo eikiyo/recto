@@ -7,6 +7,11 @@
 import type { Env, GscBackfillJob } from '../env';
 import { searchAnalyticsPage, isDomainProperty } from '../integrations/gsc';
 import { accessTokenForSite, nDaysAgo } from '../lib/gsc-token';
+import { retryOrDrop } from '../lib/queue';
+import { normalizeUrl, pathOf } from '../lib/url-norm';
+
+const MAX_QUOTA_DELIVERIES = 4;   // quota: a few spaced retries, then defer to the daily cron
+const MAX_BACKFILL_DELIVERIES = 5; // unknown errors: bound then drop (cron re-fills later)
 
 export async function handleGscBackfillBatch(
   batch: MessageBatch<GscBackfillJob>,
@@ -29,14 +34,16 @@ export async function handleGscBackfillBatch(
     } catch (e) {
       const m = (e as Error).message;
       if (m === 'gsc_quota') {
-        // Quota — retry once with delay; further failure → DLQ when configured.
-        msg.retry({ delaySeconds: 60 * 5 });
+        // Quota — retry a few times spaced out, then drop (the daily incremental
+        // cron re-fetches the day anyway). Bounded so a stuck quota can't loop.
+        retryOrDrop(msg, 'gsc-backfill/quota', { siteId: job.siteId, kind: job.kind, day: (job as { day?: string }).day }, MAX_QUOTA_DELIVERIES, 60 * 5);
       } else if (m === 'gsc_not_connected' || m === 'gsc_reauth_required') {
         // No point retrying; user must reconnect.
         msg.ack();
       } else {
-        console.error('gsc-backfill error', { siteId: job.siteId, kind: job.kind, error: m });
-        msg.retry({ delaySeconds: 30 });
+        // Unknown/transient error — bounded retry, then drop with a loud log
+        // instead of looping to the silent ~100-delivery platform default.
+        retryOrDrop(msg, 'gsc-backfill', { siteId: job.siteId, kind: job.kind, error: m }, MAX_BACKFILL_DELIVERIES, 30);
       }
     }
   }
@@ -83,10 +90,20 @@ async function fetchAndStoreDay(env: Env, siteId: string, day: string): Promise<
   void isDomainProperty; // keep import live for future per-property logic
 }
 
-function toSlug(absoluteUrl: string): string {
+// Produce the slug EXACTLY as the crawler stores it in pages.slug, so the
+// gsc_data→pages join matches. pages.slug = pathOf(normalizeUrl(crawledUrl));
+// crawl seeds + discovered links all pass through normalizeUrl, which strips a
+// trailing slash (except root) and lowercases the host. Google reports WordPress
+// permalinks WITH the trailing slash (`/my-post/`), but pages.slug is stored
+// WITHOUT it (`/my-post`) — so the old `u.pathname` join silently missed every
+// trailing-slash page and the orphan ranking lost its primary signal (28-day
+// impressions). Deriving the slug through the SAME two functions keeps the two
+// sides from ever drifting again. (Hardened 2026-06-07.)
+export function toSlug(absoluteUrl: string): string {
+  const norm = normalizeUrl(absoluteUrl);
+  if (norm) return pathOf(norm);
   try {
-    const u = new URL(absoluteUrl);
-    return u.pathname || '/';
+    return new URL(absoluteUrl).pathname || '/';
   } catch {
     return absoluteUrl;
   }

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quick wins — recto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/components.css">
+<style>
+  /* Quick wins — one guided card. Scoped here; nothing global. Hairlines only,
+     no shadows (brand). The phrase that becomes a link is shown INSIDE the
+     blog's own paragraph so the value prop is visible: we wrap your words. */
+  .qw { max-width: var(--w-prose); margin: 0 auto; padding: var(--s-6) var(--s-5) var(--s-8); }
+  .qw__progress { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s-6); }
+  .qw__count { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+  .qw__dots { display: flex; gap: 6px; }
+  .qw__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rule); transition: background var(--t-fast); }
+  .qw__dot--done { background: var(--forest); }
+  .qw__dot--now { background: var(--indigo-dye); }
+
+  .qw__kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brick); margin-bottom: var(--s-2); }
+  .qw__orphan { margin-bottom: var(--s-5); }
+  .qw__orphan h2 { font-size: 26px; line-height: 1.2; }
+  .qw__orphan a { font-size: 13px; }
+
+  .qw__lead { font-size: 15px; color: var(--ink-mid); margin-bottom: var(--s-3); }
+  .qw__lead .qw__from { font-weight: 500; color: var(--ink-deep); }
+
+  .qw__para {
+    font-family: var(--font-display); font-size: 19px; line-height: 1.7; color: var(--ink-mid);
+    background: var(--ground-raised); border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong);
+    border-radius: var(--r-2); padding: var(--s-5); margin-bottom: var(--s-3);
+  }
+  /* The matched existing phrase — looks like the link it will become. */
+  .qw__para mark {
+    background: var(--vellum); color: var(--ink-deep);
+    text-decoration: underline; text-decoration-color: var(--indigo-dye); text-decoration-thickness: 2px;
+    text-underline-offset: 3px; padding: 1px 2px; border-radius: var(--r-1);
+  }
+  .qw__note { font-size: 13px; color: var(--ink-soft); margin-bottom: var(--s-5); }
+
+  .qw__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+  .qw__actions .qw__spacer { flex: 1 1 auto; }
+  .qw__kbd { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); border: 1px solid var(--rule-strong); border-radius: var(--r-1); padding: 0 4px; margin-left: 6px; }
+  .qw__link { background: none; border: none; padding: 0; font-size: 13px; color: var(--ink-soft); text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: 3px; }
+  .qw__link:hover { color: var(--ink-deep); }
+
+  /* Hand-pick drawer */
+  .qw__pick { margin-top: var(--s-5); border-top: 1px solid var(--rule); padding-top: var(--s-5); }
+  .qw__pick[hidden] { display: none; }
+  .qw__pickbody {
+    font-family: var(--font-display); font-size: 17px; line-height: 1.75; color: var(--ink-mid);
+    background: var(--ground-recessed); border: 1px solid var(--rule); border-radius: var(--r-2);
+    padding: var(--s-4); max-height: 320px; overflow: auto; margin: var(--s-3) 0; user-select: text;
+  }
+  .qw__pickerr { color: var(--brick); font-size: 13px; margin-top: var(--s-2); min-height: 1.2em; }
+
+  /* States */
+  .qw__msg { text-align: center; padding: var(--s-8) var(--s-4); }
+  .qw__msg h2 { margin-bottom: var(--s-3); }
+  .qw__inline-ok { color: var(--forest); font-family: var(--font-mono); font-size: 13px; }
+  .qw__inline-err { color: var(--brick); font-size: 14px; margin-top: var(--s-3); }
+  [data-busy="1"] { opacity: 0.55; pointer-events: none; }
+</style>
+</head>
+<body data-nav="quick-wins" data-page="quick-wins">
+
+<main class="qw" data-testid="qw-root">
+
+  <!-- loading skeleton -->
+  <div data-testid="qw-loading" class="qw__msg muted" role="status" aria-live="polite">Reading your site…</div>
+
+  <!-- the guided card (hidden until first orphan ready) -->
+  <section data-testid="qw-card" hidden>
+    <div class="qw__progress">
+      <span class="qw__count" data-testid="qw-count">…</span>
+      <span class="qw__dots" data-testid="qw-dots" aria-hidden="true"></span>
+    </div>
+
+    <p class="qw__kicker">Orphan page — nothing links to it</p>
+    <div class="qw__orphan">
+      <h2 data-testid="qw-orphan-title">…</h2>
+      <a data-testid="qw-orphan-view" href="#" target="_blank" rel="noopener">View page ↗</a>
+    </div>
+
+    <p class="qw__lead">We'll link it using a phrase you already wrote in
+      <span class="qw__from" data-testid="qw-source-title">…</span>:</p>
+
+    <div class="qw__para" data-testid="qw-paragraph">…</div>
+    <p class="qw__note">The highlighted phrase becomes the link. Nothing else on the page changes.</p>
+
+    <div class="qw__actions">
+      <button class="btn btn--primary" data-testid="qw-link" data-action="link">Link it<span class="qw__kbd">↵</span></button>
+      <button class="qw__link" data-testid="qw-pick" data-action="pick">Pick other text</button>
+      <button class="qw__link" data-testid="qw-skip" data-action="skip">Skip<span class="qw__kbd">S</span></button>
+      <span class="qw__spacer"></span>
+      <button class="qw__link" data-testid="qw-different" data-action="different">Try a different source page</button>
+    </div>
+
+    <p class="qw__inline-err" data-testid="qw-error" role="alert" aria-live="assertive" hidden></p>
+
+    <!-- Hand-pick drawer: select your own existing phrase -->
+    <div class="qw__pick" data-testid="qw-pickwrap" hidden>
+      <p class="qw__kicker" style="color: var(--indigo-dye);">Pick the words to link from</p>
+      <p class="muted" style="font-size: 13px;">Highlight any words below — they must be text already in the post — then use your selection.</p>
+      <div class="qw__pickbody" data-testid="qw-pickbody"></div>
+      <div class="qw__actions">
+        <button class="btn btn--primary" data-testid="qw-use-selection" data-action="use-selection">Use selected words</button>
+        <button class="qw__link" data-testid="qw-pick-cancel" data-action="pick-cancel">Cancel</button>
+      </div>
+      <p class="qw__pickerr" data-testid="qw-pickerr" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- done / empty -->
+  <section data-testid="qw-done" class="qw__msg" hidden>
+    <p class="qw__kicker" style="color: var(--forest);">All caught up</p>
+    <h2 data-testid="qw-done-head">No quick wins left.</h2>
+    <p class="muted" style="margin-bottom: var(--s-5);" data-testid="qw-done-sub">Every orphan we can link has been handled. New ones appear after your next crawl.</p>
+    <p>
+      <a class="btn" data-testid="qw-done-audit" href="/app/audit.html">See what you linked →</a>
+    </p>
+  </section>
+
+  <!-- no site -->
+  <section data-testid="qw-nosite" class="qw__msg" hidden>
+    <h2>Connect a site to start.</h2>
+    <p class="muted" style="margin-bottom: var(--s-5);">Quick wins appear once we've read a site and found orphan pages.</p>
+    <p><a class="btn btn--primary" href="/app/sites-new.html">Connect your site →</a></p>
+  </section>
+
+</main>
+
+<script src="/scripts/app-shell.js"></script>
+<script src="/scripts/api.js"></script>
+<script src="/scripts/pages.js"></script>
+</body>
+</html>
